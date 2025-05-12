@@ -4,11 +4,11 @@
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Users, CalendarCheck2, Link as LinkIcon, DollarSign, TrendingUp, PieChart as PieChartIcon, Calendar as CalendarIcon } from "lucide-react"; // Updated icons
+import { Users, CalendarCheck2, Link as LinkIcon, DollarSign, TrendingUp, BarChartHorizontal, Calendar as CalendarIcon } from "lucide-react"; // Updated icons (PieChartIcon replaced with BarChartHorizontal)
 import Link from "next/link";
 import { GeneratedLinkCard } from "@/components/GeneratedLinkCard";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from "@/components/ui/chart"; // Chart imports
-import { Bar, BarChart, Line, LineChart, XAxis, YAxis, CartesianGrid, Pie, PieChart, Cell } from "recharts"; // Recharts imports
+import { Bar, BarChart, Line, LineChart, XAxis, YAxis, CartesianGrid, Cell } from "recharts"; // Recharts imports (removed Pie, PieChart, added Cell)
 import type { ChartConfig } from "@/components/ui/chart";
 import { Calendar } from "@/components/ui/calendar"; // Import Calendar
 import { format } from 'date-fns'; // Import format from date-fns
@@ -205,41 +205,59 @@ export default function AdminDashboard() {
                 </CardContent>
               </Card>
 
-              {/* Appointment Status Chart */}
+              {/* Appointment Status Chart (Now Bar Chart) */}
               <Card className="shadow-sm hover:shadow-md transition-shadow duration-200">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <PieChartIcon className="h-5 w-5 text-primary" /> Appointment Status
+                    <BarChartHorizontal className="h-5 w-5 text-primary" /> Appointment Status
                   </CardTitle>
                   <CardDescription>Breakdown of appointment statuses.</CardDescription>
                 </CardHeader>
-                <CardContent className="flex items-center justify-center pb-0">
-                  <ChartContainer config={chartConfig} className="h-[250px] w-full">
-                     <PieChart accessibilityLayer >
-                       <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="dot" nameKey="status" hideLabel />} />
-                       <Pie
+                <CardContent className="pb-4">
+                   <ChartContainer config={chartConfig} className="h-[250px] w-full">
+                      <BarChart
+                        accessibilityLayer
                         data={appointmentStatusData}
-                        dataKey="count"
-                        nameKey="status"
-                        cx="50%"
-                        cy="50%"
-                        outerRadius={80}
-                        innerRadius={50} // Added innerRadius for donut chart effect
-                        paddingAngle={2}
-                        fill="var(--color-count)" // Base fill, overridden by Cell
-                       >
-                           {appointmentStatusData.map((entry, index) => (
-                              <Cell key={`cell-${index}`} fill={entry.fill} name={entry.status} /> // Pass name to Cell
+                        layout="vertical" // Use vertical layout for horizontal bars
+                        margin={{ left: 10, right: 10, top: 5, bottom: 5 }}
+                      >
+                        <CartesianGrid horizontal={false} strokeDasharray="3 3" />
+                        <XAxis type="number" hide /> {/* Hide X axis (count) as it's shown in tooltip */}
+                        <YAxis
+                          dataKey="status"
+                          type="category"
+                          tickLine={false}
+                          axisLine={false}
+                          tickMargin={8}
+                          width={80} // Allocate space for labels
+                          tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
+                        />
+                        <ChartTooltip
+                          cursor={false}
+                          content={<ChartTooltipContent indicator="dot" nameKey="status" hideLabel />}
+                        />
+                        <Bar
+                          dataKey="count"
+                          layout="vertical"
+                          radius={4} // Add slight rounding to bars
+                          barSize={30} // Adjust bar size
+                          // Fill is handled by chartConfig and item data
+                          fill="var(--color-count)" // Default fill, overridden below
+                         >
+                           {appointmentStatusData.map((entry) => (
+                              <Cell key={`cell-${entry.status}`} fill={entry.fill} name={entry.status} /> // Pass name and fill to Cell
                            ))}
-                       </Pie>
-                        <ChartLegend
-                          content={<ChartLegendContent nameKey="status" />} // Use nameKey="status" to match data
+                         </Bar>
+                        {/* Keep legend if needed, or remove if redundant with Y-axis labels */}
+                        {/* <ChartLegend
+                          content={<ChartLegendContent nameKey="status" />}
                           verticalAlign="bottom"
                           align="center"
+                          iconType="circle"
                           iconSize={10}
-                          wrapperStyle={{ paddingBottom: '1rem' }} // Add some padding below legend
-                        />
-                     </PieChart>
+                          wrapperStyle={{ paddingBottom: '1rem' }}
+                        /> */}
+                      </BarChart>
                    </ChartContainer>
                 </CardContent>
               </Card>
