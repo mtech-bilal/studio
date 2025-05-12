@@ -52,7 +52,7 @@ const ChartContainer = React.forwardRef<
         data-chart={chartId}
         ref={ref}
         className={cn(
-          "flex aspect-video justify-center text-xs [&_.recharts-cartesian-axis-tick_text]:fill-muted-foreground [&_.recharts-cartesian-grid_line[stroke='#ccc']]:stroke-border/50 [&_.recharts-curve.recharts-tooltip-cursor]:stroke-border [&_.recharts-dot[stroke='#fff']]:stroke-transparent [&_.recharts-layer]:outline-none [&_.recharts-polar-grid_[stroke='#ccc']]:stroke-border [&_.recharts-radial-bar-background-sector]:fill-muted [&_.recharts-rectangle.recharts-tooltip-cursor]:fill-muted [&_.recharts-reference-line_[stroke='#ccc']]:stroke-border [&_.recharts-sector[stroke='#fff']]:stroke-transparent [&_.recharts-sector]:outline-none [&_.recharts-surface]:outline-none",
+          "flex aspect-video justify-center text-xs [&_.recharts-cartesian-axis-tick_text]:fill-muted-foreground [&_.recharts-cartesian-grid_line]:stroke-border/50 [&_.recharts-curve.recharts-tooltip-cursor]:stroke-border [&_.recharts-dot[stroke='#fff']]:stroke-transparent [&_.recharts-layer]:outline-none [&_.recharts-polar-grid_[stroke='#ccc']]:stroke-border [&_.recharts-radial-bar-background-sector]:fill-muted [&_.recharts-rectangle.recharts-tooltip-cursor]:fill-muted [&_.recharts-reference-line_[stroke='#ccc']]:stroke-border [&_.recharts-sector[stroke='#fff']]:stroke-transparent [&_.recharts-sector]:outline-none [&_.recharts-surface]:outline-none",
           className
         )}
         {...props}
@@ -192,7 +192,7 @@ const ChartTooltipContent = React.forwardRef<
 
             return (
               <div
-                key={item.dataKey}
+                key={item.dataKey || item.name || index} // Use item.name or index as fallback key
                 className={cn(
                   "flex w-full flex-wrap items-stretch gap-2 [&>svg]:h-2.5 [&>svg]:w-2.5 [&>svg]:text-muted-foreground",
                   indicator === "dot" && "items-center"
@@ -238,7 +238,7 @@ const ChartTooltipContent = React.forwardRef<
                           {itemConfig?.label || item.name}
                         </span>
                       </div>
-                      {item.value && (
+                      {item.value !== undefined && item.value !== null && ( // Check for undefined and null
                         <span className="font-mono font-medium tabular-nums text-foreground">
                           {item.value.toLocaleString()}
                         </span>
@@ -291,7 +291,7 @@ const ChartLegendContent = React.forwardRef<
 
           return (
             <div
-              key={item.value}
+              key={item.value} // Use item.value which corresponds to the nameKey (e.g., "Completed")
               className={cn(
                 "flex items-center gap-1.5 [&>svg]:h-3 [&>svg]:w-3 [&>svg]:text-muted-foreground"
               )}
@@ -306,7 +306,8 @@ const ChartLegendContent = React.forwardRef<
                   }}
                 />
               )}
-              {itemConfig?.label}
+               {/* Use the label from config based on the nameKey (item.value) */}
+              <span className="text-muted-foreground">{itemConfig?.label || item.value}</span>
             </div>
           )
         })}
@@ -320,40 +321,48 @@ ChartLegendContent.displayName = "ChartLegend"
 function getPayloadConfigFromPayload(
   config: ChartConfig,
   payload: unknown,
-  key: string
-) {
+  key: string // key corresponds to the 'nameKey' provided to Tooltip/Legend
+): ChartConfig[string] | undefined {
+
   if (typeof payload !== "object" || payload === null) {
-    return undefined
+    return undefined;
   }
 
-  const payloadPayload =
-    "payload" in payload &&
-    typeof payload.payload === "object" &&
-    payload.payload !== null
-      ? payload.payload
-      : undefined
+  // For PieChart/BarChart payload item, the relevant key (like 'status' or 'month')
+  // is often directly in item.payload
+  const itemPayload = (payload as any).payload;
 
-  let configLabelKey: string = key
+  // Determine the config key: Use the actual value from the payload (e.g., "Completed", "Scheduled")
+  // if the provided `key` exists in the item's payload. Otherwise, fall back to using the `key` itself.
+  const configKey = itemPayload && typeof itemPayload[key] === 'string' ? itemPayload[key] : key;
 
-  if (
-    key in payload &&
-    typeof payload[key as keyof typeof payload] === "string"
-  ) {
-    configLabelKey = payload[key as keyof typeof payload] as string
-  } else if (
-    payloadPayload &&
-    key in payloadPayload &&
-    typeof payloadPayload[key as keyof typeof payloadPayload] === "string"
-  ) {
-    configLabelKey = payloadPayload[
-      key as keyof typeof payloadPayload
-    ] as string
+
+  // Look up the config using the determined key
+  if (configKey && configKey in config) {
+    return config[configKey];
   }
 
-  return configLabelKey in config
-    ? config[configLabelKey]
-    : config[key as keyof typeof config]
+  // Fallback for LineChart where payload item itself might represent the series
+  if (key in config) {
+     return config[key];
+  }
+
+  // Check if payload.name directly matches a config key (common in tooltips)
+  const nameKey = (payload as any).name;
+  if (nameKey && nameKey in config) {
+     return config[nameKey];
+  }
+
+  // Check if payload.dataKey directly matches a config key
+  const dataKey = (payload as any).dataKey;
+    if (dataKey && dataKey in config) {
+      return config[dataKey];
+    }
+
+
+  return undefined;
 }
+
 
 export {
   ChartContainer,

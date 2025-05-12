@@ -22,6 +22,7 @@ import {
   ShieldCheck, // Added (for Roles)
   CreditCard, // Added (for Payments)
   Stethoscope, // Added (for Physicians)
+  User, // Added (for Profile)
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -146,6 +147,20 @@ export function AdminSidebar() {
                </Link>
              </SidebarMenuButton>
            </SidebarMenuItem>
+
+          {/* Profile */}
+           <SidebarMenuItem>
+            <SidebarMenuButton
+              asChild
+              isActive={isActive("/admin/profile")}
+              tooltip="Profile"
+            >
+              <Link href="/admin/profile">
+                <User />
+                <span>Profile</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
 
           {/* Settings */}
            <SidebarMenuItem>
