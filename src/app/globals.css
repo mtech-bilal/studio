@@ -8,76 +8,88 @@ body {
 
 @layer base {
   :root {
-    --background: 204 17% 95%; /* Light Gray #ecf0f1 */
-    --foreground: 0 0% 3.9%; /* Dark Gray/Black */
+    /* New Theme: Warm Sunset */
+    --background: 26 80% 96%; /* Very Light Peach #fff5ed */
+    --foreground: 20 14% 4%; /* Dark Brown #2a211c */
     --card: 0 0% 100%; /* White */
-    --card-foreground: 0 0% 3.9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 3.9%;
-    --primary: 208 70% 53%; /* Calm Blue #3498db */
-    --primary-foreground: 0 0% 98%; /* White/Light Gray */
-    --secondary: 204 17% 90%; /* Slightly darker gray */
-    --secondary-foreground: 0 0% 9%;
-    --muted: 204 17% 90%; /* Light Gray */
-    --muted-foreground: 0 0% 45.1%;
-    --accent: 145 63% 49%; /* Emerald Green #2ecc71 */
-    --accent-foreground: 0 0% 98%; /* White/Light Gray */
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 204 17% 85%; /* Slightly darker gray for borders */
+    --card-foreground: 20 14% 4%; /* Dark Brown */
+    --popover: 0 0% 100%; /* White */
+    --popover-foreground: 20 14% 4%; /* Dark Brown */
+    --primary: 15 88% 58%; /* Burnt Orange #f77f00 */
+    --primary-foreground: 0 0% 100%; /* White */
+    --secondary: 45 90% 90%; /* Light Yellow #fffacd */
+    --secondary-foreground: 30 50% 30%; /* Muted Yellow-Brown */
+    --muted: 26 80% 90%; /* Light Peach #ffeadb */
+    --muted-foreground: 20 14% 40%; /* Grayish Brown */
+    --accent: 340 75% 60%; /* Coral Pink #f56a79 */
+    --accent-foreground: 0 0% 100%; /* White */
+    --destructive: 0 75% 55%; /* Soft Red #e84855 */
+    --destructive-foreground: 0 0% 100%; /* White */
+    --border: 26 80% 85%; /* Peach Border #ffe1c8 */
     --input: 0 0% 100%; /* White input background */
-    --input-border: 204 17% 85%; /* Input border */
-    --ring: 208 70% 53%; /* Calm Blue for focus rings */
-    --chart-1: 208 70% 53%; /* Calm Blue */
-    --chart-2: 145 63% 49%; /* Emerald Green */
-    --chart-3: 40 80% 60%; /* Yellow/Orange for warning/neutral */
-    --chart-4: 0 70% 60%;   /* Red for busy/error */
-    --chart-5: 210 40% 96.1%; /* Light muted blue */
+    --input-border: 26 80% 80%; /* Slightly darker peach border */
+    --ring: 15 88% 58%; /* Burnt Orange for focus rings */
+
+    /* Chart Colors */
+    --chart-1: 15 88% 58%; /* Burnt Orange */
+    --chart-2: 340 75% 60%; /* Coral Pink */
+    --chart-3: 45 80% 60%; /* Yellow */
+    --chart-4: 190 60% 50%; /* Teal */
+    --chart-5: 260 50% 60%; /* Purple */
+
+    /* Radius */
     --radius: 0.5rem;
-    --sidebar-background: 0 0% 100%; /* White sidebar */
-    --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 208 70% 53%; /* Calm Blue */
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 204 17% 95%; /* Light Gray */
-    --sidebar-accent-foreground: 208 70% 53%; /* Calm Blue */
-    --sidebar-border: 204 17% 85%;
-    --sidebar-ring: 208 70% 53%;
+
+    /* Sidebar Colors (adjusted for new theme) */
+    --sidebar-background: 26 80% 94%; /* Lighter Peach */
+    --sidebar-foreground: 20 14% 15%; /* Darker Brown */
+    --sidebar-primary: 15 88% 58%; /* Burnt Orange */
+    --sidebar-primary-foreground: 0 0% 100%; /* White */
+    --sidebar-accent: 26 80% 88%; /* Medium Peach */
+    --sidebar-accent-foreground: 15 88% 45%; /* Darker Orange */
+    --sidebar-border: 26 80% 80%; /* Peach Border */
+    --sidebar-ring: 15 88% 58%; /* Burnt Orange */
   }
+
   .dark {
-    /* Define dark mode colors if needed, otherwise keep defaults or adjust */
-    --background: 0 0% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 0 0% 3.9%;
-    --card-foreground: 0 0% 98%;
-    --popover: 0 0% 3.9%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 208 70% 53%; /* Keep Calm Blue */
-    --primary-foreground: 0 0% 98%;
-    --secondary: 0 0% 14.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 0 0% 14.9%;
-    --muted-foreground: 0 0% 63.9%;
-    --accent: 145 63% 49%; /* Keep Emerald Green */
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 14.9%;
-    --input: 0 0% 14.9%;
-    --input-border: 0 0% 14.9%;
-    --ring: 208 70% 53%; /* Keep Calm Blue */
-    --chart-1: 208 70% 53%;
-    --chart-2: 145 63% 49%;
-    --chart-3: 40 80% 60%;
-    --chart-4: 0 70% 60%;
-    --chart-5: 210 40% 10%;
-    --sidebar-background: 0 0% 3.9%; /* Dark sidebar */
-    --sidebar-foreground: 0 0% 98%;
-    --sidebar-primary: 208 70% 53%;
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 0 0% 14.9%;
-    --sidebar-accent-foreground: 208 70% 53%;
-    --sidebar-border: 0 0% 14.9%;
-    --sidebar-ring: 208 70% 53%;
+    /* Dark Theme Variant: Deep Ocean */
+    --background: 210 30% 12%; /* Very Dark Blue #141b24 */
+    --foreground: 210 20% 95%; /* Light Grayish Blue #f0f4f8 */
+    --card: 210 30% 18%; /* Dark Blue #1d2635 */
+    --card-foreground: 210 20% 95%; /* Light Grayish Blue */
+    --popover: 210 30% 15%; /* Slightly Darker Blue */
+    --popover-foreground: 210 20% 95%; /* Light Grayish Blue */
+    --primary: 190 70% 55%; /* Cyan #48cae4 */
+    --primary-foreground: 210 30% 10%; /* Very Dark Blue */
+    --secondary: 220 40% 30%; /* Muted Indigo #3a4a78 */
+    --secondary-foreground: 210 20% 85%; /* Lighter Grayish Blue */
+    --muted: 210 30% 22%; /* Darker Blue Gray #2a3647 */
+    --muted-foreground: 210 20% 65%; /* Medium Grayish Blue */
+    --accent: 170 65% 50%; /* Teal #38c1a4 */
+    --accent-foreground: 210 30% 10%; /* Very Dark Blue */
+    --destructive: 0 65% 50%; /* Soft Red #d65050 */
+    --destructive-foreground: 210 20% 95%; /* Light Grayish Blue */
+    --border: 210 30% 25%; /* Blue Gray Border #2f3e53 */
+    --input: 210 30% 20%; /* Darker Blue Input */
+    --input-border: 210 30% 30%; /* Medium Blue Gray Border */
+    --ring: 190 70% 55%; /* Cyan for focus rings */
+
+    /* Chart Colors */
+    --chart-1: 190 70% 55%; /* Cyan */
+    --chart-2: 170 65% 50%; /* Teal */
+    --chart-3: 40 80% 60%; /* Yellow/Gold */
+    --chart-4: 0 65% 50%;   /* Soft Red */
+    --chart-5: 260 50% 65%; /* Lavender */
+
+    /* Sidebar Colors (adjusted for dark theme) */
+    --sidebar-background: 210 30% 15%; /* Darker Blue */
+    --sidebar-foreground: 210 20% 90%; /* Light Grayish Blue */
+    --sidebar-primary: 190 70% 55%; /* Cyan */
+    --sidebar-primary-foreground: 210 30% 10%; /* Very Dark Blue */
+    --sidebar-accent: 210 30% 25%; /* Blue Gray */
+    --sidebar-accent-foreground: 190 70% 65%; /* Lighter Cyan */
+    --sidebar-border: 210 30% 20%; /* Dark Border */
+    --sidebar-ring: 190 70% 55%; /* Cyan */
   }
 }
 
