@@ -55,15 +55,15 @@ const chartConfig = {
   count: {
     label: "Count",
   },
-  completed: {
+  Completed: { // Match the 'status' values from data
      label: "Completed",
      color: "hsl(var(--chart-1))",
   },
-  scheduled: {
+  Scheduled: { // Match the 'status' values from data
       label: "Scheduled",
       color: "hsl(var(--chart-2))",
   },
-    cancelled: {
+    Cancelled: { // Match the 'status' values from data
         label: "Cancelled",
         color: "hsl(var(--chart-5))",
     },
@@ -188,10 +188,10 @@ export default function AdminDashboard() {
                         tickMargin={8}
                         tickFormatter={(value) => value.slice(0, 3)}
                       />
-                      <YAxis tickLine={false} axisLine={false} tickMargin={8} />
+                      <YAxis tickLine={false} axisLine={false} tickMargin={8} allowDecimals={false} />
                       <ChartTooltip
                         cursor={false}
-                        content={<ChartTooltipContent hideLabel />}
+                        content={<ChartTooltipContent hideLabel nameKey="appointments" />}
                       />
                       <Line
                         dataKey="appointments"
@@ -224,19 +224,20 @@ export default function AdminDashboard() {
                         cx="50%"
                         cy="50%"
                         outerRadius={80}
-                        innerRadius={50}
+                        innerRadius={50} // Added innerRadius for donut chart effect
                         paddingAngle={2}
                         fill="var(--color-count)" // Base fill, overridden by Cell
                        >
                            {appointmentStatusData.map((entry, index) => (
-                              <Cell key={`cell-${index}`} fill={entry.fill} />
+                              <Cell key={`cell-${index}`} fill={entry.fill} name={entry.status} /> // Pass name to Cell
                            ))}
                        </Pie>
                         <ChartLegend
-                          content={<ChartLegendContent nameKey="status" />}
+                          content={<ChartLegendContent nameKey="status" />} // Use nameKey="status" to match data
                           verticalAlign="bottom"
                           align="center"
                           iconSize={10}
+                          wrapperStyle={{ paddingBottom: '1rem' }} // Add some padding below legend
                         />
                      </PieChart>
                    </ChartContainer>

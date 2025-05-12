@@ -126,8 +126,8 @@ const ChartTooltipContent = React.forwardRef<
       labelClassName,
       formatter,
       color,
-      nameKey,
-      labelKey,
+      nameKey, // Represents the key in the data object for the name (e.g., 'status')
+      labelKey, // Represents the key for the main label (often the X-axis value)
     },
     ref
   ) => {
@@ -135,39 +135,50 @@ const ChartTooltipContent = React.forwardRef<
 
     const tooltipLabel = React.useMemo(() => {
       if (hideLabel || !payload?.length) {
-        return null
+        return null;
       }
 
-      const [item] = payload
-      const key = `${labelKey || item.dataKey || item.name || "value"}`
-      const itemConfig = getPayloadConfigFromPayload(config, item, key)
-      const value =
-        !labelKey && typeof label === "string"
-          ? config[label as keyof typeof config]?.label || label
-          : itemConfig?.label
+      const [item] = payload;
+      let value: React.ReactNode;
+
+      // If labelKey is provided (usually for line/bar charts with an X-axis), use it
+      if (labelKey && item.payload && typeof item.payload[labelKey] !== 'undefined') {
+        value = item.payload[labelKey];
+      // If nameKey is provided (usually for pie charts), use the name property of the payload item
+      } else if (nameKey && typeof item.name !== 'undefined') {
+         value = item.name;
+      // Fallback to the provided label prop or the first item's name/dataKey
+      } else {
+         const key = `${item.dataKey || item.name || 'value'}`;
+         const itemConfig = getPayloadConfigFromPayload(config, item, key, nameKey); // Pass nameKey here
+         value = label || itemConfig?.label || item.name;
+      }
+
 
       if (labelFormatter) {
         return (
-          <div className={cn("font-medium", labelClassName)}>
+          <div className={cn('font-medium', labelClassName)}>
             {labelFormatter(value, payload)}
           </div>
-        )
+        );
       }
 
       if (!value) {
-        return null
+        return null;
       }
 
-      return <div className={cn("font-medium", labelClassName)}>{value}</div>
+      return <div className={cn('font-medium', labelClassName)}>{value}</div>;
     }, [
-      label,
-      labelFormatter,
       payload,
       hideLabel,
+      labelKey,
+      nameKey, // Add nameKey dependency
+      label,
+      labelFormatter,
       labelClassName,
       config,
-      labelKey,
-    ])
+    ]);
+
 
     if (!active || !payload?.length) {
       return null
@@ -186,9 +197,11 @@ const ChartTooltipContent = React.forwardRef<
         {!nestLabel ? tooltipLabel : null}
         <div className="grid gap-1.5">
           {payload.map((item, index) => {
-            const key = `${nameKey || item.name || item.dataKey || "value"}`
-            const itemConfig = getPayloadConfigFromPayload(config, item, key)
-            const indicatorColor = color || item.payload.fill || item.color
+             // Determine the key for fetching config: use item.name (from Pie/Cell) if available and nameKey matches, otherwise dataKey.
+             const itemKey = nameKey && item.name ? item.name : (item.dataKey || 'value');
+             const itemConfig = getPayloadConfigFromPayload(config, item, itemKey, nameKey);
+             const indicatorColor = color || item.payload.fill || item.color;
+             const itemName = itemConfig?.label || item.name; // Use config label if available, else item name
 
             return (
               <div
@@ -235,7 +248,7 @@ const ChartTooltipContent = React.forwardRef<
                       <div className="grid gap-1.5">
                         {nestLabel ? tooltipLabel : null}
                         <span className="text-muted-foreground">
-                          {itemConfig?.label || item.name}
+                          {itemName}
                         </span>
                       </div>
                       {item.value !== undefined && item.value !== null && ( // Check for undefined and null
@@ -263,7 +276,7 @@ const ChartLegendContent = React.forwardRef<
   React.ComponentProps<"div"> &
     Pick<RechartsPrimitive.LegendProps, "payload" | "verticalAlign"> & {
       hideIcon?: boolean
-      nameKey?: string
+      nameKey?: string // Represents the key in the data object that holds the name (e.g., 'status')
     }
 >(
   (
@@ -286,12 +299,13 @@ const ChartLegendContent = React.forwardRef<
         )}
       >
         {payload.map((item) => {
-          const key = `${nameKey || item.dataKey || "value"}`
-          const itemConfig = getPayloadConfigFromPayload(config, item, key)
+           // Use item.value which corresponds to the nameKey value (e.g., "Completed")
+           const key = item.value;
+           const itemConfig = getPayloadConfigFromPayload(config, item, key, nameKey);
 
           return (
             <div
-              key={item.value} // Use item.value which corresponds to the nameKey (e.g., "Completed")
+              key={item.value}
               className={cn(
                 "flex items-center gap-1.5 [&>svg]:h-3 [&>svg]:w-3 [&>svg]:text-muted-foreground"
               )}
@@ -321,39 +335,34 @@ ChartLegendContent.displayName = "ChartLegend"
 function getPayloadConfigFromPayload(
   config: ChartConfig,
   payload: unknown,
-  key: string // key corresponds to the 'nameKey' provided to Tooltip/Legend
+  key: string, // The primary key derived (e.g., 'appointments', 'Completed', 'Scheduled')
+  nameKey?: string // Optional: The key in the data object holding the name (e.g., 'status')
 ): ChartConfig[string] | undefined {
 
   if (typeof payload !== "object" || payload === null) {
     return undefined;
   }
 
-  // For PieChart/BarChart payload item, the relevant key (like 'status' or 'month')
-  // is often directly in item.payload
-  const itemPayload = (payload as any).payload;
-
-  // Determine the config key: Use the actual value from the payload (e.g., "Completed", "Scheduled")
-  // if the provided `key` exists in the item's payload. Otherwise, fall back to using the `key` itself.
-  const configKey = itemPayload && typeof itemPayload[key] === 'string' ? itemPayload[key] : key;
-
-
-  // Look up the config using the determined key
-  if (configKey && configKey in config) {
-    return config[configKey];
+  // If a nameKey is provided (typical for legends/tooltips of categorical charts like Pie)
+  // and the payload item has a 'value' property (which holds the category name like "Completed"),
+  // prioritize using that value to look up the config.
+  if (nameKey && typeof (payload as any).value === 'string' && (payload as any).value in config) {
+      return config[(payload as any).value];
   }
 
-  // Fallback for LineChart where payload item itself might represent the series
-  if (key in config) {
-     return config[key];
+   // If the primary key exists directly in the config, use it.
+   // This handles cases like LineChart dataKeys ('appointments') or direct keys.
+   if (key && key in config) {
+    return config[key];
   }
 
-  // Check if payload.name directly matches a config key (common in tooltips)
-  const nameKey = (payload as any).name;
-  if (nameKey && nameKey in config) {
-     return config[nameKey];
+  // Fallback: Check if payload.name directly matches a config key (common in tooltips)
+  const payloadName = (payload as any).name;
+  if (payloadName && payloadName in config) {
+     return config[payloadName];
   }
 
-  // Check if payload.dataKey directly matches a config key
+  // Fallback: Check if payload.dataKey directly matches a config key
   const dataKey = (payload as any).dataKey;
     if (dataKey && dataKey in config) {
       return config[dataKey];
