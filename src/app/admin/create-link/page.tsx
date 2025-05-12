@@ -1,77 +1,50 @@
+// src/app/admin/create-link/page.tsx
 "use client";
 
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { PhysicianSelector } from "@/components/PhysicianSelector";
-import { Label } from "@/components/ui/label";
+// Removed PhysicianSelector import
+// Removed Label import (no longer needed for selector)
 import { GeneratedLinkCard } from "@/components/GeneratedLinkCard";
-import { Link as LinkIcon } from 'lucide-react';
-
-// Mock physician data (consistent with PhysicianSelector)
-const physicians = [
-  { id: "dr-smith", name: "Dr. John Smith - Cardiologist" },
-  { id: "dr-jones", name: "Dr. Sarah Jones - Dermatologist" },
-  { id: "dr-williams", name: "Dr. Robert Williams - Pediatrician" },
-  { id: "dr-brown", name: "Dr. Emily Brown - General Practitioner" },
-];
-
+import { Link as LinkIcon, ClipboardCheck } from 'lucide-react'; // Added ClipboardCheck
 
 export default function CreateLinkPage() {
-  const [selectedPhysicianId, setSelectedPhysicianId] = useState<string | undefined>(undefined);
+  // Removed selectedPhysicianId state
   const [generatedLink, setGeneratedLink] = useState<string | null>(null);
-  const [physicianName, setPhysicianName] = useState<string>('');
+  const [linkGenerated, setLinkGenerated] = useState<boolean>(false);
+  // Removed physicianName state
 
   const handleGenerateLink = () => {
-    if (selectedPhysicianId) {
-      const physician = physicians.find(p => p.id === selectedPhysicianId);
-      if (physician) {
-        // In a real app, this would likely involve a server action/API call
-        // to create and store the link securely.
-        const link = `/book/${selectedPhysicianId}`;
-        setGeneratedLink(link);
-        setPhysicianName(physician.name);
-      } else {
-         setGeneratedLink(null);
-         setPhysicianName('');
-      }
-
-    } else {
-      // Handle case where no physician is selected (e.g., show a toast)
-      console.warn("Please select a physician first.");
-       setGeneratedLink(null);
-       setPhysicianName('');
-    }
+      // Generate the generic booking link
+      const link = `/book`;
+      setGeneratedLink(link);
+      setLinkGenerated(true); // Indicate link has been generated
   };
 
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl font-bold tracking-tight">Create Booking Link</h1>
+      <h1 className="text-3xl font-bold tracking-tight">Create Generic Booking Link</h1>
 
       <Card>
         <CardHeader>
-          <CardTitle>Select Physician</CardTitle>
+          <CardTitle>Generate Link</CardTitle>
           <CardDescription>
-            Choose the physician for whom you want to generate a booking link.
+            Create a single shareable link for customers to book appointments. They will select the physician during the booking process.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="physician-select">Physician</Label>
-            <PhysicianSelector
-              value={selectedPhysicianId}
-              onValueChange={setSelectedPhysicianId}
-              aria-label="Select Physician"
-              />
-          </div>
-          <Button onClick={handleGenerateLink} disabled={!selectedPhysicianId}>
-             <LinkIcon className="mr-2 h-4 w-4" /> Generate Link
+           {/* Removed Physician Selector */}
+          <Button onClick={handleGenerateLink} disabled={linkGenerated}>
+             {linkGenerated ? <ClipboardCheck className="mr-2 h-4 w-4" /> : <LinkIcon className="mr-2 h-4 w-4" />}
+             {linkGenerated ? 'Link Generated' : 'Generate Link'}
           </Button>
         </CardContent>
       </Card>
 
-      {generatedLink && physicianName && (
-        <GeneratedLinkCard physicianName={physicianName} link={generatedLink} />
+      {generatedLink && (
+        // Use a generic name for the card title
+        <GeneratedLinkCard physicianName="General Booking Link" link={generatedLink} />
       )}
     </div>
   );

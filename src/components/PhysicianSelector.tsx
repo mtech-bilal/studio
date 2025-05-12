@@ -1,3 +1,4 @@
+// src/components/PhysicianSelector.tsx
 "use client";
 
 import * as React from "react";
@@ -10,12 +11,27 @@ import {
 } from "@/components/ui/select";
 import type { SelectProps } from "@radix-ui/react-select";
 
-// Mock data for physicians
-const physicians = [
-  { id: "dr-smith", name: "Dr. John Smith - Cardiologist" },
-  { id: "dr-jones", name: "Dr. Sarah Jones - Dermatologist" },
-  { id: "dr-williams", name: "Dr. Robert Williams - Pediatrician" },
-  { id: "dr-brown", name: "Dr. Emily Brown - General Practitioner" },
+// Mock data structure including specialty and rates
+interface PhysicianOption {
+  id: string;
+  name: string;
+  specialty: string;
+  // Rates can be added if needed for display within the selector itself,
+  // but usually fetched separately after selection.
+  // ratePhysical: number | null;
+  // rateOnline: number | null;
+}
+
+// Mock data for physicians - replace with actual data fetching
+// Ensure this data is consistent across the application (e.g., admin pages)
+const physicians: PhysicianOption[] = [
+  { id: "dr-smith", name: "Dr. John Smith", specialty: "Cardiologist" },
+  { id: "dr-jones", name: "Dr. Sarah Jones", specialty: "Dermatologist" },
+  { id: "dr-williams", name: "Dr. Robert Williams", specialty: "Pediatrician" },
+  { id: "dr-brown", name: "Dr. Emily Brown", specialty: "General Practitioner" },
+  // Add more physicians as needed
+  { id: "dr-chen", name: "Dr. Linda Chen", specialty: "Neurologist"},
+  { id: "dr-patel", name: "Dr. Anil Patel", specialty: "Orthopedics"},
 ];
 
 interface PhysicianSelectorProps extends SelectProps {
@@ -27,13 +43,13 @@ interface PhysicianSelectorProps extends SelectProps {
 export function PhysicianSelector({ onValueChange, value, ...props }: PhysicianSelectorProps) {
   return (
     <Select onValueChange={onValueChange} value={value} {...props}>
-      <SelectTrigger className="w-full md:w-[280px]">
+      <SelectTrigger className="w-full">
         <SelectValue placeholder="Select a Physician" />
       </SelectTrigger>
       <SelectContent>
         {physicians.map((physician) => (
           <SelectItem key={physician.id} value={physician.id}>
-            {physician.name}
+            {physician.name} - {physician.specialty}
           </SelectItem>
         ))}
       </SelectContent>

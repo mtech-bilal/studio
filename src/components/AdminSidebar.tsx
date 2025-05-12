@@ -15,13 +15,20 @@ import {
 } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
-import { ClipboardList, Link as LinkIcon, BarChart2, LogOut, Settings } from "lucide-react";
+import {
+  ClipboardList, Link as LinkIcon, BarChart2, LogOut, Settings,
+  Users, // Added
+  Briefcase, // Added (for Customers)
+  ShieldCheck, // Added (for Roles)
+  CreditCard, // Added (for Payments)
+  Stethoscope, // Added (for Physicians)
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function AdminSidebar() {
   const pathname = usePathname();
 
-  const isActive = (path: string) => pathname === path;
+  const isActive = (path: string) => pathname === path || (path !== '/admin/dashboard' && pathname.startsWith(path));
 
   return (
     <Sidebar collapsible="icon">
@@ -40,6 +47,7 @@ export function AdminSidebar() {
       <Separator className="my-0 mb-2" />
       <SidebarContent>
         <SidebarMenu>
+          {/* Dashboard */}
           <SidebarMenuItem>
             <SidebarMenuButton
               asChild
@@ -52,6 +60,8 @@ export function AdminSidebar() {
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
+
+          {/* Create Link */}
           <SidebarMenuItem>
             <SidebarMenuButton
               asChild
@@ -64,7 +74,80 @@ export function AdminSidebar() {
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
-          {/* Add more admin links as needed */}
+
+           {/* Physician Management */}
+           <SidebarMenuItem>
+             <SidebarMenuButton
+               asChild
+               isActive={isActive("/admin/physicians")}
+               tooltip="Physicians"
+             >
+               <Link href="/admin/physicians">
+                 <Stethoscope />
+                 <span>Physicians</span>
+               </Link>
+             </SidebarMenuButton>
+           </SidebarMenuItem>
+
+           {/* Customer Management */}
+           <SidebarMenuItem>
+             <SidebarMenuButton
+               asChild
+               isActive={isActive("/admin/customers")}
+               tooltip="Customers"
+             >
+               <Link href="/admin/customers">
+                 <Briefcase />
+                 <span>Customers</span>
+               </Link>
+             </SidebarMenuButton>
+           </SidebarMenuItem>
+
+           {/* Payment Management */}
+           <SidebarMenuItem>
+             <SidebarMenuButton
+               asChild
+               isActive={isActive("/admin/payments")}
+               tooltip="Payments"
+             >
+               <Link href="/admin/payments">
+                 <CreditCard />
+                 <span>Payments</span>
+               </Link>
+             </SidebarMenuButton>
+           </SidebarMenuItem>
+
+           <Separator className="my-2" />
+
+           {/* User Management */}
+           <SidebarMenuItem>
+             <SidebarMenuButton
+               asChild
+               isActive={isActive("/admin/users")}
+               tooltip="Users"
+             >
+               <Link href="/admin/users">
+                 <Users />
+                 <span>Users</span>
+               </Link>
+             </SidebarMenuButton>
+           </SidebarMenuItem>
+
+           {/* Role Management */}
+           <SidebarMenuItem>
+             <SidebarMenuButton
+               asChild
+               isActive={isActive("/admin/roles")}
+               tooltip="Roles"
+             >
+               <Link href="/admin/roles">
+                 <ShieldCheck />
+                 <span>Roles</span>
+               </Link>
+             </SidebarMenuButton>
+           </SidebarMenuItem>
+
+          {/* Settings */}
            <SidebarMenuItem>
             <SidebarMenuButton
               asChild
