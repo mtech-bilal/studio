@@ -13,8 +13,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Upload, Save, ArrowLeft, UserCircle } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
-import { fetchMockUsers, updateMockUser, type User, type UserInputData } from '@/actions/userActions';
-import { fetchMockRoles, type Role } from '@/actions/roleActions';
+import { fetchUserById, updateUser, type User, type UserInputData } from '@/actions/userActions';
+import { fetchRoles, type Role } from '@/actions/roleActions';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export default function EditUserPage() {
@@ -31,26 +31,28 @@ export default function EditUserPage() {
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
-  const [selectedRole, setSelectedRole] = useState<string>('');
+  const [selectedRoleId, setSelectedRoleId] = useState<string>('');
   const [status, setStatus] = useState<"Active" | "Inactive">("Active");
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+
 
   useEffect(() => {
     const loadInitialData = async () => {
       setIsLoading(true);
-      setIsLoadingRoles(true);
+      setIsLoadingRoles(true); // Also set this loading state
       try {
-        const fetchedRoles = await fetchMockRoles();
+        const fetchedRoles = await fetchRoles();
         setRoles(fetchedRoles);
+        setIsLoadingRoles(false); // Roles loaded
 
         if (userId) {
-          const allUsers = await fetchMockUsers();
-          const foundUser = allUsers.find(u => u._id === userId);
+          const foundUser = await fetchUserById(userId); // Uses Sanity action
           if (foundUser) {
             setUser(foundUser);
             setName(foundUser.name);
             setEmail(foundUser.email);
-            setSelectedRole(foundUser.role);
+            setSelectedRoleId(foundUser.role?._ref || ''); // Ensure role._ref is accessed
             setStatus(foundUser.status);
             setAvatarPreview(foundUser.avatarUrl || null);
           } else {
@@ -62,8 +64,7 @@ export default function EditUserPage() {
         console.error("Failed to load data:", error);
         toast({ title: "Error", description: "Could not load user or role data.", variant: "destructive" });
       } finally {
-        setIsLoading(false);
-        setIsLoadingRoles(false);
+        setIsLoading(false); // Main data loading finished
       }
     };
     loadInitialData();
@@ -72,6 +73,7 @@ export default function EditUserPage() {
   const handleAvatarUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
+      setAvatarFile(file);
       const reader = new FileReader();
       reader.onloadend = () => {
         setAvatarPreview(reader.result as string);
@@ -80,14 +82,19 @@ export default function EditUserPage() {
     }
   };
 
-  const handleRemoveAvatar = () => setAvatarPreview(null);
+  const handleRemoveAvatar = () => {
+    setAvatarPreview(null);
+    setAvatarFile(null);
+    const fileInput = document.getElementById('avatarUpload') as HTMLInputElement;
+    if (fileInput) fileInput.value = '';
+  };
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!user) return;
     setIsSaving(true);
 
-    if (!name.trim() || !email.trim() || !selectedRole) {
+    if (!name.trim() || !email.trim() || !selectedRoleId) {
       toast({ title: "Validation Error", description: "Name, Email, and Role are required.", variant: "destructive" });
       setIsSaving(false);
       return;
@@ -96,14 +103,15 @@ export default function EditUserPage() {
     const userData: Partial<UserInputData> = {
       name,
       email,
-      role: selectedRole,
+      roleId: selectedRoleId,
       status,
-      avatarUrl: avatarPreview || undefined,
+      avatarUrl: avatarPreview || undefined, // Using preview URL
     };
 
     startTransition(async () => {
       try {
-        await updateMockUser(user._id, userData);
+        // TODO: Handle avatar file upload to Sanity if avatarFile exists
+        await updateUser(user._id, userData);
         toast({ title: "User Updated", description: `${name} has been successfully updated.` });
         router.push('/admin/users');
       } catch (error) {
@@ -146,7 +154,6 @@ export default function EditUserPage() {
 
       <form onSubmit={handleSubmit}>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left Column: Avatar */}
           <div className="lg:col-span-1 space-y-6">
             <Card>
               <CardHeader>
@@ -166,11 +173,13 @@ export default function EditUserPage() {
                   </Button>
                   {avatarPreview && ( <Button type="button" variant="destructive" onClick={handleRemoveAvatar}>Remove</Button> )}
                 </div>
+                 <p className="text-xs text-muted-foreground text-center">
+                  Uploading to Sanity is not yet implemented for avatars.
+                </p>
               </CardContent>
             </Card>
           </div>
 
-          {/* Right Column: User Details Form */}
           <div className="lg:col-span-2">
             <Card>
               <CardHeader>
@@ -189,14 +198,14 @@ export default function EditUserPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                     <Label htmlFor="role">Role</Label>
-                    <Select value={selectedRole} onValueChange={setSelectedRole} disabled={isSaving || isLoadingRoles}>
+                    <Select value={selectedRoleId} onValueChange={setSelectedRoleId} disabled={isSaving || isLoadingRoles}>
                         <SelectTrigger id="role" aria-label="Select role">
                         <SelectValue placeholder={isLoadingRoles ? "Loading roles..." : "Select a role"} />
                         </SelectTrigger>
                         <SelectContent>
                         {isLoadingRoles ? (<SelectItem value="loading" disabled>Loading...</SelectItem>) :
                             roles.map((role) => (
-                            <SelectItem key={role._id} value={role.name}>
+                            <SelectItem key={role._id} value={role._id}>
                                 {role.title}
                             </SelectItem>
                             ))}
@@ -211,7 +220,7 @@ export default function EditUserPage() {
                         </div>
                     </div>
                 </div>
-                 <p className="text-sm text-muted-foreground">Password can be changed via the user's profile page or a password reset flow.</p>
+                 <p className="text-sm text-muted-foreground">Password can be changed via the user's profile page or a password reset flow (not implemented).</p>
               </CardContent>
               <CardFooter className="border-t pt-6 flex justify-end">
                 <Button type="submit" disabled={isSaving || isLoadingRoles}>

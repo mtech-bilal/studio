@@ -10,14 +10,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { SelectProps } from "@radix-ui/react-select";
-import type { Physician } from "@/actions/physicianActions"; // Use Physician type from actions
-// Removed Sanity client import
+import type { Physician } from "@/actions/physicianActions";
 
 interface PhysicianSelectorProps extends SelectProps {
-   onValueChange?: (value: string) => void;
-   value?: string;
-   physiciansList?: Physician[]; // Optional: pass pre-fetched list
-   isLoading?: boolean; // Optional: parent can control loading state
+   onValueChange?: (value: string) => void; // value is physician._id
+   value?: string; // selected physician._id
+   physiciansList?: Physician[]; 
+   isLoading?: boolean;
 }
 
 export function PhysicianSelector({ 
@@ -27,11 +26,8 @@ export function PhysicianSelector({
     isLoading: parentIsLoading, 
     ...props 
 }: PhysicianSelectorProps) {
-  // Use the passed list if available, otherwise an empty array
   const physiciansToDisplay = physiciansList || [];
-  // isLoading is true if parent says so, or if no list is provided yet (implying it might be loading internally - though this component no longer fetches)
   const isLoading = parentIsLoading !== undefined ? parentIsLoading : !physiciansList;
-
 
   return (
     <Select 
@@ -41,7 +37,9 @@ export function PhysicianSelector({
         disabled={isLoading || physiciansToDisplay.length === 0}
     >
       <SelectTrigger className="w-full">
-        <SelectValue placeholder={isLoading ? "Loading physicians..." : (physiciansToDisplay.length === 0 ? "No physicians available" : "Select a Physician")} />
+        <SelectValue 
+            placeholder={isLoading ? "Loading physicians..." : (physiciansToDisplay.length === 0 ? "No physicians available" : "Select a Physician")} 
+        />
       </SelectTrigger>
       <SelectContent>
         {isLoading ? (

@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Upload, Save, ArrowLeft } from "lucide-react";
+import { Upload, Save, ArrowLeft, UserPlus } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import { createPhysician, type PhysicianInputData } from '@/actions/physicianActions';
@@ -20,18 +20,20 @@ export default function AddPhysicianPage() {
   const [isSaving, setIsSaving] = useState(false);
 
   const [name, setName] = useState('');
-  const [specialty, setSpecialty] = useState(''); // Departments
+  const [specialty, setSpecialty] = useState('');
   const [ratePhysical, setRatePhysical] = useState<string>('');
   const [rateOnline, setRateOnline] = useState<string>('');
-  const [email, setEmail] = useState(''); // New field
-  const [phone, setPhone] = useState(''); // New field
-  const [bio, setBio] = useState(''); // New field
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [bio, setBio] = useState('');
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
 
-  // Mock avatar upload
+
   const handleAvatarUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
+      setAvatarFile(file);
       const reader = new FileReader();
       reader.onloadend = () => {
         setAvatarPreview(reader.result as string);
@@ -42,43 +44,48 @@ export default function AddPhysicianPage() {
 
   const handleRemoveAvatar = () => {
     setAvatarPreview(null);
-    // Reset file input if you have a ref to it
+    setAvatarFile(null);
+    const fileInput = document.getElementById('avatarUpload') as HTMLInputElement;
+    if (fileInput) fileInput.value = '';
   };
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setIsSaving(true);
 
-    const physicalRateNum = parseFloat(ratePhysical);
-    const onlineRateNum = parseFloat(rateOnline);
+    const physicalRateNum = ratePhysical ? parseFloat(ratePhysical) : null;
+    const onlineRateNum = rateOnline ? parseFloat(rateOnline) : null;
 
     if (!name.trim() || !specialty.trim()) {
       toast({ title: "Validation Error", description: "Full Name and Specialty are required.", variant: "destructive" });
       setIsSaving(false);
       return;
     }
-    if (ratePhysical && isNaN(physicalRateNum)) {
+    if (ratePhysical && isNaN(physicalRateNum!)) { // Add null check for physicalRateNum
         toast({ title: "Validation Error", description: "Physical Rate must be a valid number.", variant: "destructive" });
         setIsSaving(false);
         return;
     }
-    if (rateOnline && isNaN(onlineRateNum)) {
+    if (rateOnline && isNaN(onlineRateNum!)) { // Add null check for onlineRateNum
         toast({ title: "Validation Error", description: "Online Rate must be a valid number.", variant: "destructive" });
         setIsSaving(false);
         return;
     }
 
-
     const physicianData: PhysicianInputData = {
       name,
       specialty,
-      ratePhysical: ratePhysical ? physicalRateNum : null,
-      rateOnline: rateOnline ? onlineRateNum : null,
-      // email, phone, bio, avatarUrl would be part of a more complex PhysicianInputData
+      email: email || undefined,
+      phone: phone || undefined,
+      bio: bio || undefined,
+      ratePhysical: physicalRateNum,
+      rateOnline: onlineRateNum,
+      avatarUrl: avatarPreview || undefined, // Using preview URL for now
     };
 
     startTransition(async () => {
       try {
+        // TODO: If avatarFile exists, handle upload to Sanity and get asset URL
         await createPhysician(physicianData);
         toast({ title: "Physician Added", description: `${name} has been successfully added.` });
         router.push('/admin/physicians');
@@ -104,7 +111,6 @@ export default function AddPhysicianPage() {
 
       <form onSubmit={handleSubmit}>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left Column: Avatar and Basic Info */}
           <div className="lg:col-span-1 space-y-6">
             <Card>
               <CardHeader>
@@ -129,13 +135,12 @@ export default function AddPhysicianPage() {
                   )}
                 </div>
                 <p className="text-xs text-muted-foreground text-center">
-                  For best results, use an image at least 200px by 200px in .jpg or .png format.
+                  Optional. Uploading to Sanity not yet implemented. Provide URL or leave blank.
                 </p>
               </CardContent>
             </Card>
           </div>
 
-          {/* Right Column: Detailed Form */}
           <div className="lg:col-span-2">
             <Card>
               <CardHeader>
@@ -156,11 +161,11 @@ export default function AddPhysicianPage() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="email">Email Address</Label>
+                    <Label htmlFor="email">Email Address (Optional)</Label>
                     <Input id="email" type="email" placeholder="physician@example.com" value={email} onChange={(e) => setEmail(e.target.value)} disabled={isSaving} />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="phone">Phone Number</Label>
+                    <Label htmlFor="phone">Phone Number (Optional)</Label>
                     <Input id="phone" placeholder="+1 234 567 8900" value={phone} onChange={(e) => setPhone(e.target.value)} disabled={isSaving} />
                   </div>
                 </div>
@@ -168,18 +173,23 @@ export default function AddPhysicianPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="ratePhysical">Physical Rate ($)</Label>
-                    <Input id="ratePhysical" type="number" placeholder="150" value={ratePhysical} onChange={(e) => setRatePhysical(e.target.value)} disabled={isSaving} />
+                    <Input id="ratePhysical" type="number" placeholder="150" value={ratePhysical} onChange={(e) => setRatePhysical(e.target.value)} disabled={isSaving} step="0.01" />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="rateOnline">Online Rate ($)</Label>
-                    <Input id="rateOnline" type="number" placeholder="75" value={rateOnline} onChange={(e) => setRateOnline(e.target.value)} disabled={isSaving} />
+                    <Input id="rateOnline" type="number" placeholder="75" value={rateOnline} onChange={(e) => setRateOnline(e.target.value)} disabled={isSaving} step="0.01" />
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="bio">Biography</Label>
+                  <Label htmlFor="bio">Biography (Optional)</Label>
                   <Textarea id="bio" placeholder="A brief introduction about the physician..." value={bio} onChange={(e) => setBio(e.target.value)} rows={4} disabled={isSaving} />
                 </div>
+                 <div className="space-y-2">
+                    <Label htmlFor="avatarUrl">Avatar URL (Optional)</Label>
+                    <Input id="avatarUrl" placeholder="https://example.com/avatar.jpg" value={avatarPreview || ''} onChange={(e) => setAvatarPreview(e.target.value)} disabled={isSaving || !!avatarFile} />
+                     <p className="text-xs text-muted-foreground">If uploading, this field will be ignored. Clear upload to use URL.</p>
+                 </div>
               </CardContent>
               <CardFooter className="border-t pt-6 flex justify-end">
                 <Button type="submit" disabled={isSaving}>

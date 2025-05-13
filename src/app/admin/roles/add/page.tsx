@@ -7,10 +7,11 @@ import Link from 'next/link';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Save, ArrowLeft } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
-import { createRole, type RoleInput, fetchMockRoles } from '@/actions/roleActions';
+import { createRole, type RoleInput, fetchRoles } from '@/actions/roleActions';
 
 export default function AddRolePage() {
   const router = useRouter();
@@ -19,27 +20,37 @@ export default function AddRolePage() {
 
   const [roleInternalName, setRoleInternalName] = useState('');
   const [roleDisplayTitle, setRoleDisplayTitle] = useState('');
+  const [roleDescription, setRoleDescription] = useState('');
+
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setIsSaving(true);
 
-    if (!roleInternalName.trim() || !roleDisplayTitle.trim()) {
+    const internalNameClean = roleInternalName.toLowerCase().trim().replace(/\s+/g, '_');
+
+    if (!internalNameClean || !roleDisplayTitle.trim()) {
       toast({ title: "Validation Error", description: "Both internal name and display title are required.", variant: "destructive" });
       setIsSaving(false);
       return;
     }
+     if (!/^[a-z0-9_]+$/.test(internalNameClean)) {
+      toast({ title: "Validation Error", description: "Internal name must be lowercase letters, numbers, and underscores only.", variant: "destructive" });
+      setIsSaving(false);
+      return;
+    }
+
 
     const roleData: RoleInput = {
-      name: roleInternalName.toLowerCase().trim().replace(/\s+/g, '_'), // Sanitize internal name
-      title: roleDisplayTitle.trim()
+      name: internalNameClean,
+      title: roleDisplayTitle.trim(),
+      description: roleDescription.trim()
     };
 
     startTransition(async () => {
       try {
-        // Check if role name already exists (client-side check before calling server action)
-        const existingRoles = await fetchMockRoles();
-        if (existingRoles.some(r => r.name === roleData.name)) {
+        const existingRoles = await fetchRoles();
+        if (existingRoles.some(r => r.name.current === roleData.name)) {
             toast({ title: "Error", description: `Role with internal name "${roleData.name}" already exists.`, variant: "destructive" });
             setIsSaving(false);
             return;
@@ -83,14 +94,14 @@ export default function AddRolePage() {
               <Label htmlFor="roleInternalName">Internal Name</Label>
               <Input
                 id="roleInternalName"
-                placeholder="e.g., staff_member (lowercase, underscores)"
+                placeholder="e.g., staff_member"
                 value={roleInternalName}
                 onChange={(e) => setRoleInternalName(e.target.value)}
                 required
                 disabled={isSaving}
               />
               <p className="text-xs text-muted-foreground">
-                Used internally. Lowercase letters and underscores only. Cannot be changed later.
+                Used internally. Lowercase letters, numbers, and underscores only. Cannot be changed later.
               </p>
             </div>
             <div className="space-y-2">
@@ -106,6 +117,17 @@ export default function AddRolePage() {
               <p className="text-xs text-muted-foreground">
                 Friendly name shown in the UI.
               </p>
+            </div>
+             <div className="space-y-2">
+              <Label htmlFor="roleDescription">Description (Optional)</Label>
+              <Textarea
+                id="roleDescription"
+                placeholder="A brief description of what this role can do."
+                value={roleDescription}
+                onChange={(e) => setRoleDescription(e.target.value)}
+                rows={3}
+                disabled={isSaving}
+              />
             </div>
           </CardContent>
           <CardFooter className="border-t pt-6 flex justify-end">

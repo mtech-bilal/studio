@@ -12,22 +12,25 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { PaginationControls } from '@/components/PaginationControls';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
-import { fetchMockUsers, updateMockUser, deleteMockUser, type User } from '@/actions/userActions';
+import { fetchUsers, updateUser, deleteUser, type User } from '@/actions/userActions';
 
 const ITEMS_PER_PAGE = 6;
 
 export default function UserManagementPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isProcessing, setIsProcessing] = useState<string | false>(false); // Store ID of user being processed or false
+  const [isProcessing, setIsProcessing] = useState<string | false>(false); 
   const [currentPage, setCurrentPage] = useState(1);
   const { toast } = useToast();
 
   const loadUsers = async () => {
     setIsLoading(true);
     try {
-      const usersList = await fetchMockUsers();
-      usersList.sort((a,b) => (a._createdAt && b._createdAt) ? new Date(b._createdAt).getTime() - new Date(a._createdAt).getTime() : a.name.localeCompare(b.name));
+      const usersList = await fetchUsers();
+      // Sorting is now handled by the Sanity query in fetchUsers if desired,
+      // or can be done client-side if needed.
+      // For example, if _createdAt is not consistently available or you prefer client-side sort:
+      // usersList.sort((a,b) => (a._createdAt && b._createdAt) ? new Date(b._createdAt).getTime() - new Date(a._createdAt).getTime() : a.name.localeCompare(b.name));
       setUsers(usersList);
     } catch (error) {
       console.error("Failed to fetch users:", error);
@@ -53,9 +56,9 @@ export default function UserManagementPage() {
     const newStatus = user.status === "Active" ? "Inactive" : "Active";
     startTransition(async () => {
       try {
-        await updateMockUser(user._id, { status: newStatus });
+        await updateUser(user._id, { status: newStatus });
         toast({ title: "Status Updated", description: `${user.name}'s status changed to ${newStatus}.` });
-        await loadUsers(); // Refresh list
+        await loadUsers(); 
       } catch (error) {
         toast({ title: "Error", description: "Could not update user status.", variant: "destructive" });
       } finally {
@@ -69,10 +72,9 @@ export default function UserManagementPage() {
      setIsProcessing(userId);
      startTransition(async () => {
         try {
-            await deleteMockUser(userId);
+            await deleteUser(userId);
             toast({ title: "User Deleted", description: `${userName} has been removed.` });
-            const newList = await fetchMockUsers();
-            newList.sort((a,b) => (a._createdAt && b._createdAt) ? new Date(b._createdAt).getTime() - new Date(a._createdAt).getTime() : a.name.localeCompare(b.name));
+            const newList = await fetchUsers();
             setUsers(newList);
             
             const newTotalPages = Math.ceil(newList.length / ITEMS_PER_PAGE);
@@ -81,7 +83,6 @@ export default function UserManagementPage() {
             } else if (newList.length === 0) {
                 setCurrentPage(1);
             }
-
         } catch (error) {
             toast({ title: "Error", description: "Could not delete user.", variant: "destructive" });
         } finally {
@@ -152,7 +153,7 @@ export default function UserManagementPage() {
                      <CardContent className="space-y-2 text-sm pt-0 pb-4">
                         <div className="flex items-center">
                           <Shield className="h-4 w-4 mr-1.5 text-primary" />
-                          Role: <span className="font-medium ml-1 capitalize">{user.role}</span>
+                          Role: <span className="font-medium ml-1 capitalize">{(user.role as any)?.resolved?.title || user.role as string || 'N/A'}</span>
                        </div>
                      </CardContent>
                      <CardFooter className="flex justify-end border-t pt-3 pb-3 px-4">
@@ -170,8 +171,6 @@ export default function UserManagementPage() {
                                <Edit className="mr-2 h-4 w-4" /> Edit User
                              </Link>
                            </DropdownMenuItem>
-                           {/* Change Role might be part of Edit User page */}
-                           {/* <DropdownMenuItem disabled><Shield className="mr-2 h-4 w-4" /> Change Role</DropdownMenuItem> */}
                            <DropdownMenuSeparator />
                            <DropdownMenuItem
                              onClick={() => toggleUserStatus(user)}

@@ -9,57 +9,55 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Stethoscope, RotateCcw } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
-import type { Physician } from '@/actions/physicianActions'; // Use Physician type from actions
-import { fetchMockPhysicians } from '@/actions/physicianActions'; // Use mock fetch function
-
-// Interface for physician details used in this page
-interface PhysicianDetailsPage extends Physician {}
+import type { Physician } from '@/actions/physicianActions';
+import { fetchPhysicians } from '@/actions/physicianActions'; // Use Sanity action
 
 export default function GenericBookingPage() {
   const [selectedPhysicianId, setSelectedPhysicianId] = useState<string | undefined>(undefined);
-  const [selectedPhysicianDetails, setSelectedPhysicianDetails] = useState<PhysicianDetailsPage | null>(null);
-  const [isLoadingDetails, setIsLoadingDetails] = useState(false);
-  const [allPhysicians, setAllPhysicians] = useState<Physician[]>([]); // Store all physicians for local lookup
+  const [selectedPhysicianDetails, setSelectedPhysicianDetails] = useState<Physician | null>(null);
+  const [isLoadingPhysicians, setIsLoadingPhysicians] = useState(true); // For PhysicianSelector
+  const [isLoadingDetails, setIsLoadingDetails] = useState(false); // For BookingForm after selection
+  const [allPhysicians, setAllPhysicians] = useState<Physician[]>([]);
 
-  // Fetch all physicians once to avoid multiple calls
   useEffect(() => {
     const loadInitialPhysicians = async () => {
-      setIsLoadingDetails(true); // Use this for initial load as well
+      setIsLoadingPhysicians(true);
       try {
-        const physiciansList = await fetchMockPhysicians();
+        const physiciansList = await fetchPhysicians();
         setAllPhysicians(physiciansList);
       } catch (error) {
         console.error("Failed to fetch initial physicians list:", error);
+        // Optionally, show a toast to the user
       } finally {
-        setIsLoadingDetails(false);
+        setIsLoadingPhysicians(false);
       }
     };
     loadInitialPhysicians();
   }, []);
 
 
-  const findPhysicianDetails = (id: string) => {
-    setIsLoadingDetails(true);
-    // Simulate async fetch, but use local data
-    setTimeout(() => {
-      const details = allPhysicians.find(p => p._id === id);
-      setSelectedPhysicianDetails(details || null);
-      setIsLoadingDetails(false);
-    }, 200); // Short delay to mimic network
+  const findPhysicianDetailsLocally = (id: string) => {
+    const details = allPhysicians.find(p => p._id === id);
+    setSelectedPhysicianDetails(details || null);
   };
   
   const handlePhysicianSelect = (id: string | undefined) => {
     setSelectedPhysicianId(id);
     if (id) {
-      findPhysicianDetails(id);
+      setIsLoadingDetails(true); // Show loading for form section
+      findPhysicianDetailsLocally(id); // Use local data for details
+      // Simulate a short delay if desired, or remove if instant update is fine
+      setTimeout(() => setIsLoadingDetails(false), 100); 
     } else {
       setSelectedPhysicianDetails(null);
+      setIsLoadingDetails(false);
     }
   };
 
   const handleResetSelection = () => {
     setSelectedPhysicianId(undefined);
     setSelectedPhysicianDetails(null);
+    setIsLoadingDetails(false);
   };
 
   return (
@@ -81,13 +79,13 @@ export default function GenericBookingPage() {
                   onValueChange={handlePhysicianSelect}
                   aria-label="Select Physician"
                   id="physician-select"
-                  physiciansList={allPhysicians} // Pass fetched list to selector
-                  isLoading={isLoadingDetails && allPhysicians.length === 0} // Selector handles its own loading text based on this
+                  physiciansList={allPhysicians}
+                  isLoading={isLoadingPhysicians}
                 />
               </div>
             </CardContent>
           </Card>
-        ) : isLoadingDetails ? (
+        ) : isLoadingDetails ? ( // This state shows loading for the BookingForm section
           <Card className="shadow-lg">
             <CardHeader>
               <Skeleton className="h-7 w-3/4" />
@@ -109,7 +107,7 @@ export default function GenericBookingPage() {
                  <RotateCcw className="mr-2 h-4 w-4" /> Change Physician
              </Button>
           </>
-        ) : (
+        ) : ( // This case occurs if physicianId was selected but details weren't found (should be rare with local search)
            <Card className="shadow-lg">
             <CardHeader>
               <CardTitle className="text-xl text-destructive">Physician Not Found</CardTitle>

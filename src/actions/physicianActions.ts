@@ -1,68 +1,124 @@
 // src/actions/physicianActions.ts
 'use server';
 
-// Removed SanityDocument and SanityDocumentStub imports
+import { client } from '@/sanity/client';
+import type { SanityDocument } from 'next-sanity';
+import { revalidatePath } from 'next/cache';
 
-// Mock data store (in-memory, will reset on server restart)
-let mockPhysicians: Physician[] = [
-  { _id: 'physician1', name: 'Dr. Emily Carter', specialty: 'Cardiology', ratePhysical: 150, rateOnline: 75, _createdAt: new Date().toISOString(), _updatedAt: new Date().toISOString(), _rev: '1', _type: 'physician' },
-  { _id: 'physician2', name: 'Dr. John Smith', specialty: 'Neurology', ratePhysical: 180, rateOnline: 90, _createdAt: new Date().toISOString(), _updatedAt: new Date().toISOString(), _rev: '1', _type: 'physician'  },
-  { _id: 'physician3', name: 'Dr. Sarah Jones', specialty: 'Pediatrics', ratePhysical: 120, rateOnline: 60, _createdAt: new Date().toISOString(), _updatedAt: new Date().toISOString(), _rev: '1', _type: 'physician'  },
-];
-
-
-export interface Physician {
+export interface Physician extends SanityDocument {
   _id: string;
-  _createdAt?: string;
-  _updatedAt?: string;
-  _rev?: string;
-  _type?: 'physician';
+  _type: 'physician';
   name: string;
   specialty: string;
+  email?: string;
+  phone?: string;
+  bio?: string;
   ratePhysical: number | null;
   rateOnline: number | null;
-  userAccount?: { _ref: string; _type: 'reference' }; // Kept for structure, but not used with Sanity
+  avatarUrl?: string;
+  // userAccount?: SanityReference; // If linking to a user account
 }
 
 export interface PhysicianInputData {
   name: string;
   specialty: string;
+  email?: string;
+  phone?: string;
+  bio?: string;
   ratePhysical: number | null;
   rateOnline: number | null;
-  userAccount?: { _ref: string; _type: 'reference' };
+  avatarUrl?: string;
+  // userAccountId?: string; // If linking to a user account
 }
 
+export async function fetchPhysicians(): Promise<Physician[]> {
+  const query = `*[_type == "physician"] | order(name asc)`;
+  try {
+    const physicians = await client.fetch<Physician[]>(query);
+    return physicians;
+  } catch (error) {
+    console.error("Error fetching physicians from Sanity:", error);
+    return [];
+  }
+}
 
-export async function fetchMockPhysicians(): Promise<Physician[]> {
-  await new Promise(resolve => setTimeout(resolve, 300)); // Simulate delay
-  return JSON.parse(JSON.stringify(mockPhysicians)); // Return a deep copy
+export async function fetchPhysicianById(id: string): Promise<Physician | null> {
+  const query = `*[_type == "physician" && _id == $id][0]`;
+  try {
+    const physician = await client.fetch<Physician | null>(query, { id });
+    return physician;
+  } catch (error) {
+    console.error(`Error fetching physician ${id} from Sanity:`, error);
+    return null;
+  }
 }
 
 export async function createPhysician(data: PhysicianInputData): Promise<Physician> {
-  await new Promise(resolve => setTimeout(resolve, 300)); // Simulate delay
-  const newPhysician: Physician = {
-    _id: `physician${Date.now()}`,
-    ...data,
-    _createdAt: new Date().toISOString(),
-    _updatedAt: new Date().toISOString(),
-    _rev: '1',
-    _type: 'physician',
-  };
-  mockPhysicians.push(newPhysician);
-  return { ...newPhysician };
+  try {
+    const newPhysicianDoc = {
+      _type: 'physician',
+      name: data.name,
+      specialty: data.specialty,
+      email: data.email,
+      phone: data.phone,
+      bio: data.bio,
+      ratePhysical: data.ratePhysical,
+      rateOnline: data.rateOnline,
+      avatarUrl: data.avatarUrl,
+      // userAccount: data.userAccountId ? { _type: 'reference', _ref: data.userAccountId } : undefined,
+    };
+    const createdPhysician = await client.create<Physician>(newPhysicianDoc);
+    revalidatePath('/admin/physicians');
+    return createdPhysician;
+  } catch (error) {
+    console.error("Error creating physician in Sanity:", error);
+    throw new Error('Failed to create physician.');
+  }
 }
 
 export async function updatePhysician(id: string, data: Partial<PhysicianInputData>): Promise<Physician | null> {
-  await new Promise(resolve => setTimeout(resolve, 300)); // Simulate delay
-  const physicianIndex = mockPhysicians.findIndex(p => p._id === id);
-  if (physicianIndex === -1) {
-    return null;
+  try {
+    const patch = client.patch(id);
+    if (data.name) patch.set({ name: data.name });
+    if (data.specialty) patch.set({ specialty: data.specialty });
+    if (data.email !== undefined) patch.set({ email: data.email });
+    if (data.phone !== undefined) patch.set({ phone: data.phone });
+    if (data.bio !== undefined) patch.set({ bio: data.bio });
+    if (data.ratePhysical !== undefined) patch.set({ ratePhysical: data.ratePhysical });
+    if (data.rateOnline !== undefined) patch.set({ rateOnline: data.rateOnline });
+    if (data.avatarUrl !== undefined) patch.set({ avatarUrl: data.avatarUrl });
+    // if (data.userAccountId !== undefined) {
+    //   patch.set({ userAccount: data.userAccountId ? { _type: 'reference', _ref: data.userAccountId } : undefined });
+    // } else if (data.userAccountId === null) { // Explicitly unset
+    //   patch.unset(['userAccount']);
+    // }
+
+
+    const updatedPhysician = await patch.commit<Physician>();
+    revalidatePath('/admin/physicians');
+    revalidatePath(`/admin/physicians/edit/${id}`);
+    return updatedPhysician;
+  } catch (error) {
+    console.error("Error updating physician in Sanity:", error);
+    throw new Error('Failed to update physician.');
   }
-  mockPhysicians[physicianIndex] = { ...mockPhysicians[physicianIndex], ...data, _updatedAt: new Date().toISOString() };
-  return { ...mockPhysicians[physicianIndex] };
 }
 
 export async function deletePhysician(id: string): Promise<void> {
-  await new Promise(resolve => setTimeout(resolve, 300)); // Simulate delay
-  mockPhysicians = mockPhysicians.filter(p => p._id !== id);
+  try {
+    // Check for related bookings before deleting
+    const relatedBookingsQuery = `count(*[_type == "booking" && physician._ref == $id])`;
+    const bookingCount = await client.fetch<number>(relatedBookingsQuery, { id });
+
+    if (bookingCount > 0) {
+      throw new Error(`Cannot delete physician. They have ${bookingCount} associated booking(s). Please reassign or cancel bookings first.`);
+    }
+
+    await client.delete(id);
+    revalidatePath('/admin/physicians');
+  } catch (error) {
+    console.error("Error deleting physician from Sanity:", error);
+    if (error instanceof Error) throw error; // Re-throw if it's already an error with a message
+    throw new Error('Failed to delete physician.');
+  }
 }

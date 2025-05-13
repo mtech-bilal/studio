@@ -1,7 +1,7 @@
 // src/app/login/page.tsx
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, startTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,14 +10,7 @@ import { Label } from "@/components/ui/label";
 import { LogIn } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuthStore, type AuthUser } from '@/hooks/useAuth';
-// import { client } from '@/sanity/client'; // We will simulate Sanity fetch for now
-
-// Simulated user data that would come from Sanity
-const mockSanityUsers: Array<AuthUser & { password?: string }> = [ // Add password for mock check
-  { id: 'sanity-admin-001', name: 'Alice Admin', email: 'admin@example.com', role: 'admin', password: 'password', initials: 'AA' },
-  { id: 'sanity-physician-001', name: 'Dr. Diana Remedy', email: 'physician@example.com', role: 'physician', password: 'password', initials: 'DR' },
-  { id: 'sanity-customer-001', name: 'Charles Client', email: 'customer@example.com', role: 'customer', password: 'password', initials: 'CC' },
-];
+import { authenticateUser } from '@/actions/userActions'; // Import server action
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -31,43 +24,41 @@ export default function LoginPage() {
     event.preventDefault();
     setIsSubmitting(true);
 
-    // --- Mock Authentication & Sanity Fetch Logic ---
-    console.log('Attempting login with:', { email, password });
-    await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate network delay
+    startTransition(async () => {
+      try {
+        const authUser = await authenticateUser(email, password);
 
-    // Simulate fetching user from Sanity by email
-    // In a real app:
-    // const query = `*[_type == "user" && email == $email][0]{
-    //   _id, name, email, "role": role->name, "avatarUrl": avatar.asset->url
-    // }`;
-    // const sanityUser = await client.fetch(query, { email });
-
-    const foundUser = mockSanityUsers.find(u => u.email === email && u.password === password);
-
-    if (foundUser) {
-      const authUser: AuthUser = {
-        id: foundUser.id,
-        name: foundUser.name,
-        email: foundUser.email,
-        role: foundUser.role, // Role name from Sanity
-        initials: foundUser.initials,
-        // avatarUrl: sanityUser.avatarUrl // if you have avatar
-      };
-      login(authUser); // Update auth store
-      toast({
-        title: "Login Successful",
-        description: `Welcome, ${authUser.name}! Role: ${authUser.role}. Redirecting...`,
-      });
-      router.push('/admin/dashboard');
-    } else {
-      toast({
-        title: "Login Failed",
-        description: "Invalid email or password.",
-        variant: "destructive",
-      });
-      setIsSubmitting(false);
-    }
-    // --- End Mock Logic ---
+        if (authUser) {
+          login(authUser);
+          toast({
+            title: "Login Successful",
+            description: `Welcome, ${authUser.name}! Role: ${authUser.role}. Redirecting...`,
+          });
+          // Redirect based on role, or always to dashboard
+          if (authUser.role === 'admin' || authUser.role === 'physician') {
+            router.push('/admin/dashboard');
+          } else {
+            // Potentially a customer-specific dashboard or homepage
+            router.push('/admin/dashboard'); // Defaulting to admin dashboard for now
+          }
+        } else {
+          toast({
+            title: "Login Failed",
+            description: "Invalid email or password, or account is inactive.",
+            variant: "destructive",
+          });
+          setIsSubmitting(false);
+        }
+      } catch (error) {
+        console.error("Login error:", error);
+        toast({
+          title: "Login Error",
+          description: "An unexpected error occurred. Please try again.",
+          variant: "destructive",
+        });
+        setIsSubmitting(false);
+      }
+    });
   };
 
   return (

@@ -5,40 +5,34 @@ import React, { useState, useEffect, startTransition } from 'react';
 import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-// Removed Input and Label imports (no longer used for dialog)
-// Removed Dialog related imports
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { MoreHorizontal, UserPlus, Edit, Trash2, Stethoscope, Monitor, Users as UsersIcon } from "lucide-react";
 import { PaginationControls } from '@/components/PaginationControls';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
-import { fetchMockPhysicians, deletePhysician, type Physician } from '@/actions/physicianActions';
-
+import { fetchPhysicians, deletePhysician, type Physician } from '@/actions/physicianActions';
 
 const ITEMS_PER_PAGE = 6;
 
 const formatCurrency = (amount: number | null) => {
-  if (amount === null || isNaN(amount)) return "N/A";
+  if (amount === null || amount === undefined || isNaN(amount)) return "N/A";
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(amount);
 };
-
 
 export default function PhysicianManagementPage() {
   const [physicians, setPhysicians] = useState<Physician[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isDeleting, setIsDeleting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState<string | false>(false); // Store ID of physician being deleted
   const [currentPage, setCurrentPage] = useState(1);
   const { toast } = useToast();
 
   const loadPhysicians = async () => {
     setIsLoading(true);
     try {
-      const mockPhysiciansList = await fetchMockPhysicians();
-      mockPhysiciansList.sort((a, b) => {
-        if (a._createdAt && b._createdAt) return new Date(b._createdAt).getTime() - new Date(a._createdAt).getTime();
-        return a.name.localeCompare(b.name);
-      });
-      setPhysicians(mockPhysiciansList);
+      const physiciansList = await fetchPhysicians();
+      // Sorting can be done here if not handled by Sanity query
+      // physiciansList.sort((a, b) => a.name.localeCompare(b.name));
+      setPhysicians(physiciansList);
     } catch (error) {
       console.error("Failed to fetch physicians:", error);
       toast({ title: "Error", description: "Could not fetch physicians.", variant: "destructive" });
@@ -57,19 +51,14 @@ export default function PhysicianManagementPage() {
 
   const handlePageChange = (page: number) => setCurrentPage(page);
 
-  const handleDeletePhysician = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this physician?")) return;
-    setIsDeleting(true);
-    try {
-      startTransition(async () => {
+  const handleDeletePhysician = async (id: string, name: string) => {
+    if (!confirm(`Are you sure you want to delete Dr. ${name}? This action cannot be undone.`)) return;
+    setIsDeleting(id);
+    startTransition(async () => {
+      try {
         await deletePhysician(id);
-        toast({ title: "Success", description: "Physician deleted."});
-        // Reload physicians and adjust pagination
-        const newList = await fetchMockPhysicians();
-        newList.sort((a, b) => {
-         if (a._createdAt && b._createdAt) return new Date(b._createdAt).getTime() - new Date(a._createdAt).getTime();
-         return a.name.localeCompare(b.name);
-        });
+        toast({ title: "Success", description: `Dr. ${name} has been deleted.`});
+        const newList = await fetchPhysicians();
         setPhysicians(newList);
         const newTotalPages = Math.ceil(newList.length / ITEMS_PER_PAGE);
         if (currentPage > newTotalPages && newTotalPages > 0) {
@@ -77,13 +66,13 @@ export default function PhysicianManagementPage() {
         } else if (newList.length === 0) {
             setCurrentPage(1);
         }
-      });
-    } catch (error) {
-      console.error("Failed to delete physician:", error);
-      toast({ title: "Error", description: "Could not delete physician.", variant: "destructive" });
-    } finally {
-        setIsDeleting(false);
-    }
+      } catch (error: any) {
+        console.error("Failed to delete physician:", error);
+        toast({ title: "Error", description: error.message || "Could not delete physician.", variant: "destructive" });
+      } finally {
+          setIsDeleting(false);
+      }
+    });
   };
 
   if (isLoading && physicians.length === 0) {
@@ -152,7 +141,7 @@ export default function PhysicianManagementPage() {
                      <CardFooter className="flex justify-end border-t pt-3 pb-3 px-4">
                         <DropdownMenu>
                          <DropdownMenuTrigger asChild>
-                           <Button aria-haspopup="true" size="sm" variant="ghost" disabled={isDeleting}>
+                           <Button aria-haspopup="true" size="sm" variant="ghost" disabled={!!isDeleting}>
                              <MoreHorizontal className="h-4 w-4" />
                              <span className="sr-only">Actions</span>
                            </Button>
@@ -164,7 +153,11 @@ export default function PhysicianManagementPage() {
                                <Edit className="mr-2 h-4 w-4" /> Edit
                              </Link>
                            </DropdownMenuItem>
-                           <DropdownMenuItem className="text-destructive focus:text-destructive focus:bg-destructive/10" onClick={() => handleDeletePhysician(physician._id)} disabled={isDeleting}>
+                           <DropdownMenuItem 
+                            className="text-destructive focus:text-destructive focus:bg-destructive/10" 
+                            onClick={() => handleDeletePhysician(physician._id, physician.name)} 
+                            disabled={isDeleting === physician._id}
+                           >
                               <Trash2 className="mr-2 h-4 w-4" /> Delete
                            </DropdownMenuItem>
                          </DropdownMenuContent>

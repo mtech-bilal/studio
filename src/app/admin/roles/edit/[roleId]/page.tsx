@@ -7,11 +7,12 @@ import Link from 'next/link';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Save, ArrowLeft } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
-import { fetchMockRoles, updateRole, type Role, type RoleInput } from '@/actions/roleActions';
+import { fetchRoles, updateRole, type Role, type RoleInput } from '@/actions/roleActions';
 
 export default function EditRolePage() {
   const router = useRouter();
@@ -25,19 +26,23 @@ export default function EditRolePage() {
 
   const [roleInternalName, setRoleInternalName] = useState('');
   const [roleDisplayTitle, setRoleDisplayTitle] = useState('');
+  const [roleDescription, setRoleDescription] = useState('');
+
 
   useEffect(() => {
     if (roleId) {
       const loadRole = async () => {
         setIsLoading(true);
         try {
-          const allRoles = await fetchMockRoles();
+          // In a real app, you might have a fetchRoleById action
+          const allRoles = await fetchRoles(); 
           const foundRole = allRoles.find(r => r._id === roleId);
 
           if (foundRole) {
             setRole(foundRole);
-            setRoleInternalName(foundRole.name);
+            setRoleInternalName(foundRole.name.current);
             setRoleDisplayTitle(foundRole.title);
+            setRoleDescription(foundRole.description || '');
           } else {
             toast({ title: "Error", description: "Role not found.", variant: "destructive" });
             router.push('/admin/roles');
@@ -64,9 +69,9 @@ export default function EditRolePage() {
       return;
     }
 
-    // Internal name (role.name) is not changed during edit
     const roleData: Partial<RoleInput> = {
-      title: roleDisplayTitle.trim()
+      title: roleDisplayTitle.trim(),
+      description: roleDescription.trim()
     };
 
     startTransition(async () => {
@@ -101,6 +106,7 @@ export default function EditRolePage() {
                 <CardContent className="space-y-4">
                     <Skeleton className="h-10 w-full" />
                     <Skeleton className="h-10 w-full" />
+                    <Skeleton className="h-20 w-full" />
                 </CardContent>
                 <CardFooter className="border-t pt-6">
                     <Skeleton className="h-10 w-28 ml-auto" />
@@ -129,7 +135,7 @@ export default function EditRolePage() {
       <Card className="max-w-2xl mx-auto">
         <CardHeader>
           <CardTitle>Role Details</CardTitle>
-          <CardDescription>Update the display title for the role.</CardDescription>
+          <CardDescription>Update details for the role.</CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">
@@ -158,10 +164,21 @@ export default function EditRolePage() {
                 Friendly name shown in the UI.
               </p>
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="roleDescription">Description (Optional)</Label>
+              <Textarea
+                id="roleDescription"
+                placeholder="A brief description of what this role can do."
+                value={roleDescription}
+                onChange={(e) => setRoleDescription(e.target.value)}
+                rows={3}
+                disabled={isSaving}
+              />
+            </div>
           </CardContent>
           <CardFooter className="border-t pt-6 flex justify-end">
             <Button type="submit" disabled={isSaving}>
-              <Save className="mr-2 h-4 w-4" /> {isSaving ? 'Saving Changes...' : 'Save Changes'}
+              <Save className="mr-2 h-4 w-4" /> {isSaving Changes...' : 'Save Changes'}
             </Button>
           </CardFooter>
         </form>
