@@ -9,30 +9,55 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { LogIn } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useAuthStore, type AuthUser } from '@/hooks/useAuth';
+// import { client } from '@/sanity/client'; // We will simulate Sanity fetch for now
+
+// Simulated user data that would come from Sanity
+const mockSanityUsers: Array<AuthUser & { password?: string }> = [ // Add password for mock check
+  { id: 'sanity-admin-001', name: 'Alice Admin', email: 'admin@example.com', role: 'admin', password: 'password', initials: 'AA' },
+  { id: 'sanity-physician-001', name: 'Dr. Diana Remedy', email: 'physician@example.com', role: 'physician', password: 'password', initials: 'DR' },
+  { id: 'sanity-customer-001', name: 'Charles Client', email: 'customer@example.com', role: 'customer', password: 'password', initials: 'CC' },
+];
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
+  const { login } = useAuthStore();
 
   const handleLogin = async (event: React.FormEvent) => {
     event.preventDefault();
-    setIsLoading(true);
+    setIsSubmitting(true);
 
-    // --- Mock Authentication Logic ---
-    // In a real application, replace this with a call to your auth service
+    // --- Mock Authentication & Sanity Fetch Logic ---
     console.log('Attempting login with:', { email, password });
     await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate network delay
 
-    // Simple mock validation (replace with actual auth check)
-    if (email === 'admin@example.com' && password === 'password') {
+    // Simulate fetching user from Sanity by email
+    // In a real app:
+    // const query = `*[_type == "user" && email == $email][0]{
+    //   _id, name, email, "role": role->name, "avatarUrl": avatar.asset->url
+    // }`;
+    // const sanityUser = await client.fetch(query, { email });
+
+    const foundUser = mockSanityUsers.find(u => u.email === email && u.password === password);
+
+    if (foundUser) {
+      const authUser: AuthUser = {
+        id: foundUser.id,
+        name: foundUser.name,
+        email: foundUser.email,
+        role: foundUser.role, // Role name from Sanity
+        initials: foundUser.initials,
+        // avatarUrl: sanityUser.avatarUrl // if you have avatar
+      };
+      login(authUser); // Update auth store
       toast({
         title: "Login Successful",
-        description: "Redirecting to dashboard...",
+        description: `Welcome, ${authUser.name}! Role: ${authUser.role}. Redirecting...`,
       });
-      // Redirect to the admin dashboard on successful login
       router.push('/admin/dashboard');
     } else {
       toast({
@@ -40,7 +65,7 @@ export default function LoginPage() {
         description: "Invalid email or password.",
         variant: "destructive",
       });
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
     // --- End Mock Logic ---
   };
@@ -50,9 +75,9 @@ export default function LoginPage() {
       <Card className="w-full max-w-md shadow-xl">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-bold flex items-center justify-center gap-2">
-            <LogIn className="h-6 w-6 text-primary" /> Admin Login
+            <LogIn className="h-6 w-6 text-primary" /> Admin Portal Login
           </CardTitle>
-          <CardDescription>Enter your credentials to access the portal.</CardDescription>
+          <CardDescription>Enter your credentials to access.</CardDescription>
         </CardHeader>
         <form onSubmit={handleLogin}>
           <CardContent className="space-y-4">
@@ -61,11 +86,11 @@ export default function LoginPage() {
               <Input
                 id="email"
                 type="email"
-                placeholder="admin@example.com"
+                placeholder="user@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                disabled={isLoading}
+                disabled={isSubmitting}
               />
             </div>
             <div className="space-y-2">
@@ -73,26 +98,20 @@ export default function LoginPage() {
               <Input
                 id="password"
                 type="password"
-                placeholder="password" // Just for demo purpose
+                placeholder="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                disabled={isLoading}
+                disabled={isSubmitting}
               />
             </div>
           </CardContent>
           <CardFooter>
-            <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? "Logging in..." : "Login"}
+            <Button type="submit" className="w-full" disabled={isSubmitting}>
+              {isSubmitting ? "Logging in..." : "Login"}
             </Button>
           </CardFooter>
         </form>
-         {/* Add forgot password link if needed */}
-         {/* <div className="mt-4 text-center text-sm">
-           <a href="#" className="underline text-muted-foreground hover:text-primary">
-             Forgot password?
-           </a>
-         </div> */}
       </Card>
     </main>
   );

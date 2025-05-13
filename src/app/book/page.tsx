@@ -1,55 +1,61 @@
 // src/app/book/page.tsx
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { BookingForm } from '@/components/BookingForm';
 import { PhysicianSelector } from '@/components/PhysicianSelector';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
-import { Separator } from '@/components/ui/separator';
-import { Stethoscope } from 'lucide-react';
+import { Button } from '@/components/ui/button'; // Added Button
+import { Stethoscope, RotateCcw } from 'lucide-react'; // Added RotateCcw
+import { client } from '@/sanity/client'; // Import Sanity client
+import type { SanityDocument } from 'next-sanity';
+import { Skeleton } from '@/components/ui/skeleton'; // Added Skeleton
 
-// Mock data structure - ensure this matches the data structure in PhysicianSelector and potentially PhysicianManagement
-interface Physician {
-  id: string;
+interface PhysicianDetails extends SanityDocument {
   name: string;
   specialty: string;
   ratePhysical: number | null;
   rateOnline: number | null;
 }
 
-// Mock function to get physician details by ID - replace with actual data fetching
-// This needs to return the full details matching the Physician interface if needed
-const getPhysicianDetails = (id: string): Physician | null => {
-  // Re-use or fetch data consistent with PhysicianSelector's source
-    const physicians: Physician[] = [
-      { id: "dr-smith", name: "Dr. John Smith", specialty: "Cardiologist", ratePhysical: 150, rateOnline: 75 },
-      { id: "dr-jones", name: "Dr. Sarah Jones", specialty: "Dermatologist", ratePhysical: 120, rateOnline: 60 },
-      { id: "dr-williams", name: "Dr. Robert Williams", specialty: "Pediatrician", ratePhysical: 100, rateOnline: 50 },
-      { id: "dr-brown", name: "Dr. Emily Brown", specialty: "General Practitioner", ratePhysical: 90, rateOnline: 45 },
-    ];
-  return physicians.find(p => p.id === id) || null;
-};
-
-
 export default function GenericBookingPage() {
   const [selectedPhysicianId, setSelectedPhysicianId] = useState<string | undefined>(undefined);
-  const [selectedPhysicianDetails, setSelectedPhysicianDetails] = useState<Physician | null>(null);
+  const [selectedPhysicianDetails, setSelectedPhysicianDetails] = useState<PhysicianDetails | null>(null);
+  const [isLoadingDetails, setIsLoadingDetails] = useState(false);
 
+  const fetchPhysicianDetails = async (id: string) => {
+    setIsLoadingDetails(true);
+    try {
+      const query = '*[_type == "physician" && _id == $id][0]{_id, name, specialty, ratePhysical, rateOnline}';
+      const details: PhysicianDetails | null = await client.fetch(query, { id });
+      setSelectedPhysicianDetails(details);
+    } catch (error) {
+      console.error("Failed to fetch physician details:", error);
+      setSelectedPhysicianDetails(null); // Clear details on error
+    } finally {
+      setIsLoadingDetails(false);
+    }
+  };
+  
   const handlePhysicianSelect = (id: string | undefined) => {
     setSelectedPhysicianId(id);
     if (id) {
-      const details = getPhysicianDetails(id);
-      setSelectedPhysicianDetails(details);
+      fetchPhysicianDetails(id);
     } else {
       setSelectedPhysicianDetails(null);
     }
   };
 
+  const handleResetSelection = () => {
+    setSelectedPhysicianId(undefined);
+    setSelectedPhysicianDetails(null);
+  };
+
   return (
     <main className="container mx-auto px-4 py-8 md:py-12 flex justify-center">
       <div className="w-full max-w-2xl space-y-8">
-        {!selectedPhysicianDetails ? (
+        {!selectedPhysicianId ? (
            <Card className="shadow-lg">
             <CardHeader>
               <CardTitle className="text-2xl flex items-center gap-2">
@@ -64,34 +70,48 @@ export default function GenericBookingPage() {
                   value={selectedPhysicianId}
                   onValueChange={handlePhysicianSelect}
                   aria-label="Select Physician"
+                  id="physician-select"
                 />
               </div>
             </CardContent>
           </Card>
-        ) : (
+        ) : isLoadingDetails ? (
+          <Card className="shadow-lg">
+            <CardHeader>
+              <Skeleton className="h-7 w-3/4" />
+              <Skeleton className="h-4 w-1/2 mt-2" />
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-40 w-full" />
+              <Skeleton className="h-10 w-full" />
+            </CardContent>
+          </Card>
+        ) : selectedPhysicianDetails ? (
           <>
-            {/* Optionally display selected physician info here before the form */}
-             {/* <Card className="mb-6 bg-muted/50">
-                <CardHeader>
-                   <CardTitle className="text-xl">Selected Physician</CardTitle>
-                </CardHeader>
-                <CardContent>
-                   <p className="font-medium">{selectedPhysicianDetails.name}</p>
-                   <p className="text-sm text-muted-foreground">{selectedPhysicianDetails.specialty}</p>
-                </CardContent>
-             </Card>
-             <Separator className="my-6"/> */}
             <BookingForm
-              physicianId={selectedPhysicianDetails.id}
+              physicianId={selectedPhysicianDetails._id}
               physicianName={selectedPhysicianDetails.name}
-              // Pass rates if BookingForm needs them
+              // Pass rates if BookingForm needs them for display or logic
               // ratePhysical={selectedPhysicianDetails.ratePhysical}
               // rateOnline={selectedPhysicianDetails.rateOnline}
             />
-             <Button variant="link" onClick={() => handlePhysicianSelect(undefined)} className="mt-4">
-                 Change Physician
+             <Button variant="outline" onClick={handleResetSelection} className="mt-4 w-full sm:w-auto">
+                 <RotateCcw className="mr-2 h-4 w-4" /> Change Physician
              </Button>
           </>
+        ) : (
+           <Card className="shadow-lg">
+            <CardHeader>
+              <CardTitle className="text-xl text-destructive">Physician Not Found</CardTitle>
+              <CardDescription>The selected physician details could not be loaded. Please try again.</CardDescription>
+            </CardHeader>
+            <CardContent>
+               <Button variant="outline" onClick={handleResetSelection} className="w-full">
+                 <RotateCcw className="mr-2 h-4 w-4" /> Select a Different Physician
+               </Button>
+            </CardContent>
+          </Card>
         )}
       </div>
     </main>

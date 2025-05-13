@@ -1,48 +1,62 @@
 // src/app/admin/physicians/page.tsx
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, startTransition } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { MoreHorizontal, UserPlus, Edit, Trash2, Stethoscope, Monitor, Users, DollarSign } from "lucide-react";
-import { PaginationControls } from '@/components/PaginationControls'; // Import pagination
+import { MoreHorizontal, UserPlus, Edit, Trash2, Stethoscope, Monitor, Users } from "lucide-react";
+import { PaginationControls } from '@/components/PaginationControls';
+import { client } from '@/sanity/client'; // Import Sanity client
+import type { SanityDocument } from 'next-sanity';
+import { useToast } from '@/hooks/use-toast';
+import { Skeleton } from '@/components/ui/skeleton';
 
-// Mock data structure including rates - replace with actual data fetching and state management
-interface Physician {
-  id: string;
+interface Physician extends SanityDocument {
   name: string;
   specialty: string;
   ratePhysical: number | null;
   rateOnline: number | null;
+  // userAccount?: { _ref: string; _type: 'reference' }; // If linking to user accounts
 }
 
-const initialPhysicians: Physician[] = [
-  { id: "dr-smith", name: "Dr. John Smith", specialty: "Cardiologist", ratePhysical: 150, rateOnline: 75 },
-  { id: "dr-jones", name: "Dr. Sarah Jones", specialty: "Dermatologist", ratePhysical: 120, rateOnline: 60 },
-  { id: "dr-williams", name: "Dr. Robert Williams", specialty: "Pediatrician", ratePhysical: 100, rateOnline: 50 },
-  { id: "dr-brown", name: "Dr. Emily Brown", specialty: "General Practitioner", ratePhysical: 90, rateOnline: 45 },
-  { id: "dr-chen", name: "Dr. Linda Chen", specialty: "Neurologist", ratePhysical: 160, rateOnline: 80 },
-  { id: "dr-patel", name: "Dr. Anil Patel", specialty: "Orthopedics", ratePhysical: 140, rateOnline: 70 },
-  { id: "dr-garcia", name: "Dr. Maria Garcia", specialty: "Endocrinologist", ratePhysical: 155, rateOnline: 78 },
-  { id: "dr-lee", name: "Dr. David Lee", specialty: "Ophthalmologist", ratePhysical: 130, rateOnline: 65 },
-];
-
-const ITEMS_PER_PAGE = 6; // Number of cards per page
+const ITEMS_PER_PAGE = 6;
 
 const formatCurrency = (amount: number | null) => {
   if (amount === null || isNaN(amount)) return "N/A";
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(amount);
 };
 
+// Server Actions for Sanity CUD operations
+async function createPhysician(data: Omit<Physician, '_id' | '_type' | '_rev' | '_createdAt' | '_updatedAt'>): Promise<Physician> {
+  "use server";
+  // Ensure SANITY_API_TOKEN is set for write operations from server
+  const newPhysician = await client.create({ _type: 'physician', ...data });
+  return newPhysician as Physician;
+}
+
+async function updatePhysician(id: string, data: Partial<Omit<Physician, '_id' | '_type' | '_rev' | '_createdAt' | '_updatedAt'>>): Promise<Physician> {
+  "use server";
+  const updatedPhysician = await client.patch(id).set(data).commit();
+  return updatedPhysician as Physician;
+}
+
+async function deletePhysician(id: string): Promise<void> {
+  "use server";
+  await client.delete(id);
+}
+
+
 export default function PhysicianManagementPage() {
-  const [physicians, setPhysicians] = useState<Physician[]>(initialPhysicians);
+  const [physicians, setPhysicians] = useState<Physician[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingPhysician, setEditingPhysician] = useState<Physician | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const { toast } = useToast();
 
   // Form state for adding/editing
   const [name, setName] = useState('');
@@ -50,17 +64,29 @@ export default function PhysicianManagementPage() {
   const [ratePhysical, setRatePhysical] = useState<string>('');
   const [rateOnline, setRateOnline] = useState<string>('');
 
+  const fetchPhysicians = async () => {
+    setIsLoading(true);
+    try {
+      const query = '*[_type == "physician"] | order(_createdAt desc)';
+      const sanityPhysicians: Physician[] = await client.fetch(query);
+      setPhysicians(sanityPhysicians);
+    } catch (error) {
+      console.error("Failed to fetch physicians:", error);
+      toast({ title: "Error", description: "Could not fetch physicians.", variant: "destructive" });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchPhysicians();
+  }, []);
+
   const totalPhysicians = physicians.length;
   const totalPages = Math.ceil(totalPhysicians / ITEMS_PER_PAGE);
+  const currentPhysicians = physicians.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
-  // Calculate the physicians to display for the current page
-  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-  const endIndex = startIndex + ITEMS_PER_PAGE;
-  const currentPhysicians = physicians.slice(startIndex, endIndex);
-
-  const handlePageChange = (page: number) => {
-    setCurrentPage(page);
-  };
+  const handlePageChange = (page: number) => setCurrentPage(page);
 
   const handleOpenDialog = (physician: Physician | null = null) => {
     setEditingPhysician(physician);
@@ -70,64 +96,100 @@ export default function PhysicianManagementPage() {
       setRatePhysical(physician.ratePhysical?.toString() ?? '');
       setRateOnline(physician.rateOnline?.toString() ?? '');
     } else {
-      // Reset form for adding new
-      setName('');
-      setSpecialty('');
-      setRatePhysical('');
-      setRateOnline('');
+      setName(''); setSpecialty(''); setRatePhysical(''); setRateOnline('');
     }
     setIsDialogOpen(true);
   };
 
   const handleCloseDialog = () => {
     setIsDialogOpen(false);
-    setEditingPhysician(null); // Reset editing state
+    setEditingPhysician(null);
   };
 
-  const handleSavePhysician = () => {
+  const handleSavePhysician = async () => {
     const physicalRate = parseFloat(ratePhysical) || null;
     const onlineRate = parseFloat(rateOnline) || null;
 
-    if (editingPhysician) {
-      // Update existing physician
-      setPhysicians(physicians.map(p =>
-        p.id === editingPhysician.id
-          ? { ...p, name, specialty, ratePhysical: physicalRate, rateOnline: onlineRate }
-          : p
-      ));
-    } else {
-      // Add new physician (generate a simple ID for mock)
-      const newPhysician: Physician = {
-        id: `dr-${name.toLowerCase().replace(/\s+/g, '-')}-${Date.now()}`,
-        name,
-        specialty,
-        ratePhysical: physicalRate,
-        rateOnline: onlineRate,
-      };
-      setPhysicians([...physicians, newPhysician]);
-       // Go to the last page if a new item is added and it creates a new page
-       const newTotalPages = Math.ceil((totalPhysicians + 1) / ITEMS_PER_PAGE);
-       if (newTotalPages > totalPages) {
-         setCurrentPage(newTotalPages);
-       }
+    if (!name.trim() || !specialty.trim()) {
+        toast({title: "Validation Error", description: "Name and Specialty are required.", variant: "destructive"});
+        return;
     }
-    handleCloseDialog();
+
+    const physicianData = { name, specialty, ratePhysical: physicalRate, rateOnline: onlineRate };
+
+    try {
+      setIsLoading(true); // For the save operation
+      if (editingPhysician) {
+        startTransition(async () => {
+            await updatePhysician(editingPhysician._id, physicianData);
+            toast({ title: "Success", description: "Physician updated."});
+        });
+      } else {
+        startTransition(async () => {
+            await createPhysician(physicianData);
+             toast({ title: "Success", description: "Physician added."});
+        });
+      }
+      await fetchPhysicians(); // Refresh list
+      handleCloseDialog();
+    } catch (error) {
+      console.error("Failed to save physician:", error);
+      toast({ title: "Error", description: "Could not save physician.", variant: "destructive" });
+    } finally {
+      // More granular loading for dialog if needed
+      setIsLoading(false);
+    }
   };
 
-  const handleDeletePhysician = (id: string) => {
-     // Add confirmation dialog in real app
-     setPhysicians(prev => {
-         const updatedList = prev.filter(p => p.id !== id);
-         const newTotalPages = Math.ceil(updatedList.length / ITEMS_PER_PAGE);
-         if (currentPage > newTotalPages && newTotalPages > 0) {
-             setCurrentPage(newTotalPages);
-         } else if (updatedList.length === 0) {
-             setCurrentPage(1);
-         }
-         return updatedList;
-     });
+  const handleDeletePhysician = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this physician?")) return;
+    try {
+      setIsLoading(true);
+      startTransition(async () => {
+        await deletePhysician(id);
+        toast({ title: "Success", description: "Physician deleted."});
+      });
+      await fetchPhysicians();
+       // Adjust current page if necessary
+      const newTotalPages = Math.ceil((totalPhysicians - 1) / ITEMS_PER_PAGE);
+      if (currentPage > newTotalPages && newTotalPages > 0) {
+        setCurrentPage(newTotalPages);
+      } else if (totalPhysicians -1 === 0) {
+        setCurrentPage(1);
+      }
+
+    } catch (error) {
+      console.error("Failed to delete physician:", error);
+      toast({ title: "Error", description: "Could not delete physician.", variant: "destructive" });
+    } finally {
+        setIsLoading(false);
+    }
   };
 
+  if (isLoading && physicians.length === 0) {
+    return (
+      <div className="space-y-6">
+        <div className="flex justify-between items-center">
+          <Skeleton className="h-9 w-1/3" />
+          <Skeleton className="h-10 w-48" />
+        </div>
+        <Card>
+          <CardHeader><Skeleton className="h-6 w-1/4" /><Skeleton className="h-4 w-1/2 mt-1" /></CardHeader>
+          <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {[...Array(ITEMS_PER_PAGE)].map((_, i) => (
+              <Card key={i} className="p-4 space-y-3">
+                <Skeleton className="h-5 w-3/4" />
+                <Skeleton className="h-4 w-1/2" />
+                <Skeleton className="h-4 w-2/3" />
+                <Skeleton className="h-4 w-2/3" />
+                <Skeleton className="h-8 w-full mt-2" />
+              </Card>
+            ))}
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -143,7 +205,7 @@ export default function PhysicianManagementPage() {
              <DialogHeader>
                <DialogTitle>{editingPhysician ? 'Edit Physician' : 'Add New Physician'}</DialogTitle>
                <DialogDescription>
-                 {editingPhysician ? 'Update the details for this physician.' : 'Enter the details for the new physician.'}
+                 {editingPhysician ? 'Update details.' : 'Enter new physician details.'}
                </DialogDescription>
              </DialogHeader>
              <div className="grid gap-4 py-4">
@@ -172,7 +234,6 @@ export default function PhysicianManagementPage() {
          </Dialog>
        </div>
 
-
       <Card>
         <CardHeader>
           <CardTitle>Physicians List</CardTitle>
@@ -183,7 +244,7 @@ export default function PhysicianManagementPage() {
             <>
                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                  {currentPhysicians.map((physician) => (
-                   <Card key={physician.id} className="flex flex-col justify-between shadow-md hover:shadow-lg transition-shadow duration-200">
+                   <Card key={physician._id} className="flex flex-col justify-between shadow-md hover:shadow-lg transition-shadow duration-200">
                      <CardHeader className="pb-3">
                        <CardTitle className="text-lg">{physician.name}</CardTitle>
                        <CardDescription className="flex items-center pt-1">
@@ -213,7 +274,7 @@ export default function PhysicianManagementPage() {
                            <DropdownMenuItem onClick={() => handleOpenDialog(physician)}>
                               <Edit className="mr-2 h-4 w-4" /> Edit
                            </DropdownMenuItem>
-                           <DropdownMenuItem className="text-destructive focus:text-destructive focus:bg-destructive/10" onClick={() => handleDeletePhysician(physician.id)}>
+                           <DropdownMenuItem className="text-destructive focus:text-destructive focus:bg-destructive/10" onClick={() => handleDeletePhysician(physician._id)}>
                               <Trash2 className="mr-2 h-4 w-4" /> Delete
                            </DropdownMenuItem>
                          </DropdownMenuContent>
@@ -231,7 +292,7 @@ export default function PhysicianManagementPage() {
                 />
             </>
            ) : (
-              <p className="text-center text-muted-foreground py-8">No physicians found. Add one to get started.</p>
+              <p className="text-center text-muted-foreground py-8">{isLoading ? 'Loading...' : 'No physicians found. Add one to get started.'}</p>
            )}
         </CardContent>
       </Card>

@@ -1,66 +1,83 @@
 // src/app/admin/roles/page.tsx
-"use client"; // Required for state and interactions
+"use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, startTransition } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { ShieldCheck, PlusCircle, Edit, Trash2, CheckSquare, Square } from "lucide-react";
+import { ShieldCheck, PlusCircle, Edit, Trash2 } from "lucide-react";
+import { client } from '@/sanity/client';
+import type { SanityDocument } from 'next-sanity';
+import { useToast } from '@/hooks/use-toast';
+import { Skeleton } from '@/components/ui/skeleton';
 
-interface Permission {
-  id: string;
-  label: string;
+interface Role extends SanityDocument {
+  name: string; // Internal name
+  title: string; // Display title
 }
 
-interface Role {
-  id: string;
-  name: string;
-  description: string;
-  permissions: string[]; // Array of permission IDs
+// Server Action (placeholder for actual implementation if needed, or direct client calls for simplicity now)
+async function createRoleInSanity(roleData: Omit<Role, '_id' | '_type' | '_rev' | '_createdAt' | '_updatedAt'>): Promise<Role> {
+  'use server';
+  // In a real setup, ensure SANITY_API_TOKEN has write access for this.
+  // Using the standard client here might rely on it being configured with a token for mutations,
+  // or this server action running in an environment where the token is available.
+  // For non-server components, mutations from client side are generally discouraged for security.
+  // Let's assume this is a server action context.
+  const newRole = await client.create({ _type: 'role', ...roleData });
+  return newRole as Role;
 }
 
-const allPermissions: Permission[] = [
-    { id: "manage_users", label: "Manage Users" },
-    { id: "manage_physicians", label: "Manage Physicians" },
-    { id: "manage_bookings", label: "Manage Bookings" },
-    { id: "manage_settings", label: "Manage Settings" },
-    { id: "view_reports", label: "View Reports" },
-    { id: "view_schedule", label: "View Schedule" },
-    { id: "manage_own_bookings", label: "Manage Own Bookings" },
-    { id: "manage_roles", label: "Manage Roles" },
-    { id: "manage_payments", label: "Manage Payments" },
-];
+async function updateRoleInSanity(roleId: string, roleData: Partial<Omit<Role, '_id' | '_type' | '_rev' | '_createdAt' | '_updatedAt'>>): Promise<Role> {
+  'use server';
+  const updatedRole = await client.patch(roleId).set(roleData).commit();
+  return updatedRole as Role;
+}
 
-const initialRoles: Role[] = [
-  { id: "admin", name: "Admin", description: "Full access to all system features.", permissions: allPermissions.map(p => p.id) }, // Admin has all permissions
-  { id: "staff", name: "Staff", description: "Access to booking management and basic reporting.", permissions: ["manage_bookings", "view_reports", "manage_payments", "view_schedule"] },
-  { id: "physician", name: "Physician", description: "Access to own schedule and patient info.", permissions: ["view_schedule", "manage_own_bookings"] },
-];
+async function deleteRoleFromSanity(roleId: string): Promise<void> {
+  'use server';
+  await client.delete(roleId);
+}
 
 
 export default function RoleManagementPage() {
-  const [roles, setRoles] = useState<Role[]>(initialRoles);
+  const [roles, setRoles] = useState<Role[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingRole, setEditingRole] = useState<Role | null>(null);
+  const { toast } = useToast();
 
   // Form state
-  const [roleName, setRoleName] = useState('');
-  const [roleDescription, setRoleDescription] = useState('');
-  const [selectedPermissions, setSelectedPermissions] = useState<Set<string>>(new Set());
+  const [roleInternalName, setRoleInternalName] = useState('');
+  const [roleDisplayTitle, setRoleDisplayTitle] = useState('');
+
+  const fetchRoles = async () => {
+    setIsLoading(true);
+    try {
+      const sanityRoles: Role[] = await client.fetch('*[_type == "role"]{_id, _createdAt, name, title}');
+      setRoles(sanityRoles);
+    } catch (error) {
+      console.error("Failed to fetch roles:", error);
+      toast({ title: "Error", description: "Could not fetch roles.", variant: "destructive" });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchRoles();
+  }, []);
 
   const handleOpenDialog = (role: Role | null = null) => {
     setEditingRole(role);
     if (role) {
-      setRoleName(role.name);
-      setRoleDescription(role.description);
-      setSelectedPermissions(new Set(role.permissions));
+      setRoleInternalName(role.name);
+      setRoleDisplayTitle(role.title);
     } else {
-      setRoleName('');
-      setRoleDescription('');
-      setSelectedPermissions(new Set());
+      setRoleInternalName('');
+      setRoleDisplayTitle('');
     }
     setIsDialogOpen(true);
   };
@@ -70,50 +87,82 @@ export default function RoleManagementPage() {
     setEditingRole(null);
   };
 
-  const handlePermissionChange = (permissionId: string, checked: boolean) => {
-    setSelectedPermissions(prev => {
-      const newPermissions = new Set(prev);
-      if (checked) {
-        newPermissions.add(permissionId);
-      } else {
-        newPermissions.delete(permissionId);
-      }
-      return newPermissions;
-    });
-  };
-
-  const handleSaveRole = () => {
-     if (!roleName.trim()) return; // Basic validation
-
-    if (editingRole) {
-      // Update existing role
-      setRoles(roles.map(r =>
-        r.id === editingRole.id
-          ? { ...r, name: roleName, description: roleDescription, permissions: Array.from(selectedPermissions) }
-          : r
-      ));
-    } else {
-      // Add new role
-      const newRole: Role = {
-        id: `role-${roleName.toLowerCase().replace(/\s+/g, '-')}-${Date.now()}`,
-        name: roleName,
-        description: roleDescription,
-        permissions: Array.from(selectedPermissions),
-      };
-      setRoles([...roles, newRole]);
+  const handleSaveRole = async () => {
+    if (!roleInternalName.trim() || !roleDisplayTitle.trim()) {
+        toast({ title: "Validation Error", description: "Both internal name and display title are required.", variant: "destructive"});
+        return;
     }
-    handleCloseDialog();
+
+    const roleData = { name: roleInternalName.toLowerCase(), title: roleDisplayTitle };
+
+    try {
+        setIsLoading(true); // Indicate loading for save operation
+        if (editingRole) {
+         startTransition(async () => {
+            await updateRoleInSanity(editingRole._id, roleData);
+            toast({ title: "Success", description: "Role updated successfully." });
+          });
+        } else {
+          startTransition(async () => {
+            await createRoleInSanity(roleData);
+            toast({ title: "Success", description: "Role created successfully." });
+          });
+        }
+        await fetchRoles(); // Refresh list
+        handleCloseDialog();
+    } catch (error) {
+        console.error("Failed to save role:", error);
+        toast({ title: "Error", description: "Could not save role.", variant: "destructive" });
+    } finally {
+        // setLoading state for save operation can be handled more granularly if needed
+        setIsLoading(false);
+    }
   };
 
-  const handleDeleteRole = (id: string) => {
-     // Add confirmation dialog in real app
-     setRoles(roles.filter(r => r.id !== id));
+  const handleDeleteRole = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this role? This action cannot be undone.")) {
+        return;
+    }
+    try {
+        setIsLoading(true);
+         startTransition(async () => {
+            await deleteRoleFromSanity(id);
+            toast({ title: "Success", description: "Role deleted successfully." });
+        });
+        await fetchRoles(); // Refresh list
+    } catch (error) {
+        console.error("Failed to delete role:", error);
+        toast({ title: "Error", description: "Could not delete role. It might be in use.", variant: "destructive" });
+    } finally {
+        setIsLoading(false);
+    }
   };
+  
+  if (isLoading && roles.length === 0) {
+    return (
+      <div className="space-y-6">
+        <div className="flex justify-between items-center">
+          <Skeleton className="h-9 w-1/3" />
+          <Skeleton className="h-10 w-36" />
+        </div>
+        <div className="space-y-4">
+          {[...Array(3)].map((_, i) => (
+            <Card key={i}>
+              <CardHeader><Skeleton className="h-6 w-1/4" /><Skeleton className="h-4 w-1/2 mt-1" /></CardHeader>
+              <CardContent><Skeleton className="h-4 w-full" /></CardContent>
+              <CardFooter><Skeleton className="h-8 w-20" /></CardFooter>
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
 
   return (
     <div className="space-y-6">
        <div className="flex justify-between items-center">
-         <h1 className="text-3xl font-bold tracking-tight">Roles & Permissions</h1>
+         <h1 className="text-3xl font-bold tracking-tight">Roles Management</h1>
          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
                <Button onClick={() => handleOpenDialog()}>
@@ -124,37 +173,18 @@ export default function RoleManagementPage() {
                <DialogHeader>
                  <DialogTitle>{editingRole ? 'Edit Role' : 'Add New Role'}</DialogTitle>
                  <DialogDescription>
-                    Define the role name, description, and assign permissions.
+                    Define the role name and display title. Permissions are based on the role name (admin, physician, customer).
                  </DialogDescription>
                </DialogHeader>
-               <div className="grid gap-4 py-4 max-h-[60vh] overflow-y-auto pr-4">
+               <div className="grid gap-4 py-4">
                   <div className="space-y-2">
-                     <Label htmlFor="roleName">Role Name</Label>
-                     <Input id="roleName" value={roleName} onChange={(e) => setRoleName(e.target.value)} placeholder="e.g., Receptionist" />
+                     <Label htmlFor="roleInternalName">Internal Name (e.g., admin, physician)</Label>
+                     <Input id="roleInternalName" value={roleInternalName} onChange={(e) => setRoleInternalName(e.target.value)} placeholder="e.g., staff_member" disabled={!!editingRole} />
+                     {editingRole && <p className="text-xs text-muted-foreground">Internal name cannot be changed after creation.</p>}
                   </div>
                   <div className="space-y-2">
-                     <Label htmlFor="roleDescription">Description</Label>
-                     <Input id="roleDescription" value={roleDescription} onChange={(e) => setRoleDescription(e.target.value)} placeholder="Brief description of the role" />
-                  </div>
-                  <div className="space-y-3 pt-2">
-                    <Label className="text-base font-medium">Permissions</Label>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2">
-                      {allPermissions.map((permission) => (
-                        <div key={permission.id} className="flex items-center space-x-2">
-                          <Checkbox
-                            id={`perm-${permission.id}`}
-                            checked={selectedPermissions.has(permission.id)}
-                            onCheckedChange={(checked) => handlePermissionChange(permission.id, !!checked)}
-                          />
-                          <label
-                            htmlFor={`perm-${permission.id}`}
-                            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
-                          >
-                            {permission.label}
-                          </label>
-                        </div>
-                      ))}
-                    </div>
+                     <Label htmlFor="roleDisplayTitle">Display Title (e.g., Administrator)</Label>
+                     <Input id="roleDisplayTitle" value={roleDisplayTitle} onChange={(e) => setRoleDisplayTitle(e.target.value)} placeholder="e.g., Staff Member" />
                   </div>
                </div>
                <DialogFooter>
@@ -165,52 +195,39 @@ export default function RoleManagementPage() {
          </Dialog>
        </div>
 
-
       <div className="space-y-4">
          {roles.length > 0 ? (
             roles.map((role) => (
-              <Card key={role.id} className="overflow-hidden shadow-md hover:shadow-lg transition-shadow duration-200">
+              <Card key={role._id} className="overflow-hidden shadow-md hover:shadow-lg transition-shadow duration-200">
                 <CardHeader className="bg-muted/50 p-4 flex flex-row justify-between items-center">
                    <div>
                      <CardTitle className="text-xl flex items-center gap-2">
-                        <ShieldCheck className="h-5 w-5 text-primary"/> {role.name}
+                        <ShieldCheck className="h-5 w-5 text-primary"/> {role.title}
                      </CardTitle>
-                     <CardDescription className="pt-1">{role.description}</CardDescription>
+                     <CardDescription className="pt-1">Internal Name: {role.name}</CardDescription>
                    </div>
                    <div className="flex gap-1">
                       <Button variant="ghost" size="sm" onClick={() => handleOpenDialog(role)}>
                          <Edit className="h-4 w-4 mr-1" /> Edit
                       </Button>
-                      <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => handleDeleteRole(role.id)}>
+                      <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => handleDeleteRole(role._id)}>
                          <Trash2 className="h-4 w-4 mr-1" /> Delete
                       </Button>
                    </div>
                 </CardHeader>
                 <CardContent className="p-4">
-                   <h4 className="font-medium mb-3 text-base">Permissions:</h4>
-                   {role.permissions.length > 0 ? (
-                     <ul className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-2">
-                       {role.permissions.map((permissionId) => {
-                         const permission = allPermissions.find(p => p.id === permissionId);
-                         return permission ? (
-                           <li key={permission.id} className="flex items-center space-x-2 text-sm">
-                             <CheckSquare className="h-4 w-4 text-accent flex-shrink-0" />
-                             <span>{permission.label}</span>
-                           </li>
-                         ) : null;
-                       })}
-                     </ul>
-                   ) : (
-                      <p className="text-sm text-muted-foreground">No permissions assigned.</p>
-                   )}
-
+                  <p className="text-sm text-muted-foreground">
+                    {role.name === 'admin' && 'This role has full system access.'}
+                    {(role.name === 'physician' || role.name === 'customer') && 'This role has access to the dashboard and profile.'}
+                    {role.name !== 'admin' && role.name !== 'physician' && role.name !== 'customer' && 'Custom role. Define access rules in application logic.'}
+                  </p>
                 </CardContent>
               </Card>
             ))
          ) : (
              <Card>
                 <CardContent className="text-center text-muted-foreground py-8">
-                   No roles defined yet. Add a role to get started.
+                   {isLoading ? 'Loading roles...' : 'No roles defined yet. Add a role to get started.'}
                 </CardContent>
              </Card>
          )}

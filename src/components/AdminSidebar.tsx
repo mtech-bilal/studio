@@ -2,7 +2,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   Sidebar,
   SidebarContent,
@@ -17,19 +17,37 @@ import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import {
   ClipboardList, Link as LinkIcon, BarChart2, LogOut, Settings,
-  Users, // Added
-  Briefcase, // Added (for Customers)
-  ShieldCheck, // Added (for Roles)
-  CreditCard, // Added (for Payments)
-  Stethoscope, // Added (for Physicians)
-  User, // Added (for Profile)
+  Users,
+  Briefcase,
+  ShieldCheck,
+  CreditCard,
+  Stethoscope,
+  User,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/hooks/useAuth"; // Import useAuth
 
 export function AdminSidebar() {
   const pathname = usePathname();
+  const { user, logout, isAuthenticated } = useAuth();
+  const router = useRouter();
 
   const isActive = (path: string) => pathname === path || (path !== '/admin/dashboard' && pathname.startsWith(path));
+
+  const handleLogout = () => {
+    logout();
+    router.push('/login');
+  };
+
+  // If not authenticated or user role is not available yet, render minimal sidebar or nothing.
+  // This depends on how you want to handle the loading state or unauthenticated access to admin layout.
+  // For now, we assume this component is only rendered if some level of auth check has passed or is loading.
+
+  const isAdmin = user?.role === 'admin';
+  const isPhysician = user?.role === 'physician';
+  const isCustomer = user?.role === 'customer';
+
+  const canAccessDashboard = isAdmin || isPhysician || isCustomer;
 
   return (
     <Sidebar collapsible="icon">
@@ -43,151 +61,158 @@ export function AdminSidebar() {
              <SidebarTrigger />
            </div>
         </div>
-
       </SidebarHeader>
       <Separator className="my-0 mb-2" />
       <SidebarContent>
         <SidebarMenu>
-          {/* Dashboard */}
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              asChild
-              isActive={isActive("/admin/dashboard")}
-              tooltip="Dashboard"
-            >
-              <Link href="/admin/dashboard">
-                <BarChart2 />
-                <span>Dashboard</span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
+          {/* Dashboard - accessible by Admin, Physician, Customer */}
+          {canAccessDashboard && (
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                asChild
+                isActive={isActive("/admin/dashboard")}
+                tooltip="Dashboard"
+              >
+                <Link href="/admin/dashboard">
+                  <BarChart2 />
+                  <span>Dashboard</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          )}
 
-          {/* Create Link */}
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              asChild
-              isActive={isActive("/admin/create-link")}
-              tooltip="Create Link"
-            >
-              <Link href="/admin/create-link">
-                <LinkIcon />
-                <span>Create Link</span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
+          {/* Admin-only links */}
+          {isAdmin && (
+            <>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  isActive={isActive("/admin/create-link")}
+                  tooltip="Create Link"
+                >
+                  <Link href="/admin/create-link">
+                    <LinkIcon />
+                    <span>Create Link</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
 
-           {/* Physician Management */}
-           <SidebarMenuItem>
-             <SidebarMenuButton
-               asChild
-               isActive={isActive("/admin/physicians")}
-               tooltip="Physicians"
-             >
-               <Link href="/admin/physicians">
-                 <Stethoscope />
-                 <span>Physicians</span>
-               </Link>
-             </SidebarMenuButton>
-           </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  isActive={isActive("/admin/physicians")}
+                  tooltip="Physicians"
+                >
+                  <Link href="/admin/physicians">
+                    <Stethoscope />
+                    <span>Physicians</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
 
-           {/* Customer Management */}
-           <SidebarMenuItem>
-             <SidebarMenuButton
-               asChild
-               isActive={isActive("/admin/customers")}
-               tooltip="Customers"
-             >
-               <Link href="/admin/customers">
-                 <Briefcase />
-                 <span>Customers</span>
-               </Link>
-             </SidebarMenuButton>
-           </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  isActive={isActive("/admin/customers")}
+                  tooltip="Customers"
+                >
+                  <Link href="/admin/customers">
+                    <Briefcase />
+                    <span>Customers</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
 
-           {/* Payment Management */}
-           <SidebarMenuItem>
-             <SidebarMenuButton
-               asChild
-               isActive={isActive("/admin/payments")}
-               tooltip="Payments"
-             >
-               <Link href="/admin/payments">
-                 <CreditCard />
-                 <span>Payments</span>
-               </Link>
-             </SidebarMenuButton>
-           </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  isActive={isActive("/admin/payments")}
+                  tooltip="Payments"
+                >
+                  <Link href="/admin/payments">
+                    <CreditCard />
+                    <span>Payments</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
 
-           <Separator className="my-2" />
+              <Separator className="my-2" />
 
-           {/* User Management */}
-           <SidebarMenuItem>
-             <SidebarMenuButton
-               asChild
-               isActive={isActive("/admin/users")}
-               tooltip="Users"
-             >
-               <Link href="/admin/users">
-                 <Users />
-                 <span>Users</span>
-               </Link>
-             </SidebarMenuButton>
-           </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  isActive={isActive("/admin/users")}
+                  tooltip="Users"
+                >
+                  <Link href="/admin/users">
+                    <Users />
+                    <span>Users</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
 
-           {/* Role Management */}
-           <SidebarMenuItem>
-             <SidebarMenuButton
-               asChild
-               isActive={isActive("/admin/roles")}
-               tooltip="Roles"
-             >
-               <Link href="/admin/roles">
-                 <ShieldCheck />
-                 <span>Roles</span>
-               </Link>
-             </SidebarMenuButton>
-           </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  isActive={isActive("/admin/roles")}
+                  tooltip="Roles"
+                >
+                  <Link href="/admin/roles">
+                    <ShieldCheck />
+                    <span>Roles</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </>
+          )}
 
-          {/* Profile */}
-           <SidebarMenuItem>
-            <SidebarMenuButton
-              asChild
-              isActive={isActive("/admin/profile")}
-              tooltip="Profile"
-            >
-              <Link href="/admin/profile">
-                <User />
-                <span>Profile</span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
+          {/* Profile - accessible by all authenticated users */}
+          {isAuthenticated && (
+             <SidebarMenuItem>
+              <SidebarMenuButton
+                asChild
+                isActive={isActive("/admin/profile")}
+                tooltip="Profile"
+              >
+                <Link href="/admin/profile">
+                  <User />
+                  <span>Profile</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          )}
 
-          {/* Settings */}
-           <SidebarMenuItem>
-            <SidebarMenuButton
-              asChild
-              isActive={isActive("/admin/settings")}
-              tooltip="Settings"
-            >
-              <Link href="/admin/settings">
-                <Settings />
-                <span>Settings</span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
+
+          {/* Settings - Admin only */}
+          {isAdmin && (
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                asChild
+                isActive={isActive("/admin/settings")}
+                tooltip="Settings"
+              >
+                <Link href="/admin/settings">
+                  <Settings />
+                  <span>Settings</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          )}
         </SidebarMenu>
       </SidebarContent>
       <Separator className="my-2" />
-       <SidebarFooter>
-         <SidebarMenu>
-           <SidebarMenuItem>
-             <SidebarMenuButton tooltip="Logout">
-               <LogOut />
-               <span>Logout</span>
-             </SidebarMenuButton>
-           </SidebarMenuItem>
-         </SidebarMenu>
-       </SidebarFooter>
+      {isAuthenticated && (
+         <SidebarFooter>
+           <SidebarMenu>
+             <SidebarMenuItem>
+               <SidebarMenuButton tooltip="Logout" onClick={handleLogout}>
+                 <LogOut />
+                 <span>Logout</span>
+               </SidebarMenuButton>
+             </SidebarMenuItem>
+           </SidebarMenu>
+         </SidebarFooter>
+      )}
     </Sidebar>
   );
 }
