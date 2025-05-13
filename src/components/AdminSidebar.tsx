@@ -12,39 +12,53 @@ import {
   SidebarMenuButton,
   SidebarFooter,
   SidebarTrigger,
+  SidebarGroup,
+  SidebarGroupLabel,
+  SidebarGroupContent,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
 } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
-import { Button } from "@/components/ui/button";
 import {
-  LayoutDashboard, // Dashboard
-  CalendarDays,   // Appointment
-  Stethoscope,    // Doctors (Physicians)
-  Users2,         // Patients (Customers)
-  Pill,           // Pharmacy
-  FileText,       // Blogs
-  AppWindow,      // Pages (general)
-  Mail,           // Email Template
-  ShieldAlert,    // Authentication
-  Component,      // UI Components
-  ListOrdered,    // Miscellaneous (or Layers3)
-  Users,          // User Management
-  ShieldCheck,    // Roles
-  CreditCard,     // Payments
-  Settings,       // Settings
-  User,           // Profile
-  LogOut,         // Logout
-  HeartPulse,     // Doctris Logo
-  Link2,          // Create Link
+  LayoutDashboard, CalendarDays, Stethoscope, Users2, CreditCard, Settings, User, LogOut, HeartPulse,
+  Users, ShieldCheck, PlusCircle, ChevronDown, ChevronRight, List
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
+import React from "react"; // Import React for useState
 
 export function AdminSidebar() {
   const pathname = usePathname();
   const { user, logout, isAuthenticated } = useAuth();
   const router = useRouter();
 
-  const isActive = (path: string) => pathname === path || (path !== '/admin/dashboard' && pathname.startsWith(path));
+  const [openMenus, setOpenMenus] = React.useState<Record<string, boolean>>({
+    doctors: false,
+    users: false,
+    roles: false,
+  });
+
+  const toggleMenu = (menu: string) => {
+    setOpenMenus(prev => ({ ...prev, [menu]: !prev[menu] }));
+  };
+
+  // Update isActive to handle group and sub-item active states
+  const isActive = (path: string, exact = false) => {
+    if (exact) return pathname === path;
+    return pathname.startsWith(path);
+  };
+  
+  React.useEffect(() => {
+    // Automatically open parent menu if a sub-item is active
+    const newOpenMenus = { ...openMenus };
+    if (isActive("/admin/physicians")) newOpenMenus.doctors = true;
+    if (isActive("/admin/users")) newOpenMenus.users = true;
+    if (isActive("/admin/roles")) newOpenMenus.roles = true;
+    // Add other menu groups here if needed
+    setOpenMenus(newOpenMenus);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
+
 
   const handleLogout = () => {
     logout();
@@ -52,12 +66,7 @@ export function AdminSidebar() {
   };
 
   const isAdmin = user?.role === 'admin';
-  // const isPhysician = user?.role === 'physician'; // For future use
-  // const isCustomer = user?.role === 'customer'; // For future use
-
-  // All authenticated users can see Dashboard and Profile
   const canAccessDashboard = isAuthenticated;
-
 
   return (
     <Sidebar collapsible="icon">
@@ -72,152 +81,104 @@ export function AdminSidebar() {
            </div>
         </div>
       </SidebarHeader>
-      {/* Removed Separator, header has border-b */}
       <SidebarContent className="pt-4">
         <SidebarMenu>
-          {/* Dashboard - accessible by all */}
           {canAccessDashboard && (
             <SidebarMenuItem>
-              <SidebarMenuButton
-                asChild
-                isActive={isActive("/admin/dashboard")}
-                tooltip="Dashboard"
-              >
-                <Link href="/admin/dashboard">
-                  <LayoutDashboard />
-                  <span>Dashboard</span>
-                </Link>
+              <SidebarMenuButton asChild isActive={isActive("/admin/dashboard", true)} tooltip="Dashboard">
+                <Link href="/admin/dashboard"><LayoutDashboard /><span>Dashboard</span></Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
           )}
           
-          {/* Standard User Links (visible to admin, and potentially others if logic expanded) */}
-           {isAdmin && (
+          {isAdmin && (
             <>
               <SidebarMenuItem>
-                <SidebarMenuButton
-                  asChild
-                  isActive={isActive("/admin/create-link")} // Keep this as 'Appointments' or 'Manage Links'
-                  tooltip="Appointments"
-                >
-                  <Link href="/admin/create-link">
-                    <CalendarDays /> 
-                    <span>Appointments</span>
-                  </Link>
+                <SidebarMenuButton asChild isActive={isActive("/admin/create-link")} tooltip="Appointments">
+                  <Link href="/admin/create-link"><CalendarDays /><span>Appointments</span></Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
 
+              {/* Doctors Group */}
               <SidebarMenuItem>
-                <SidebarMenuButton
-                  asChild
-                  isActive={isActive("/admin/physicians")}
-                  tooltip="Doctors"
-                >
-                  <Link href="/admin/physicians">
-                    <Stethoscope />
-                    <span>Doctors</span>
-                  </Link>
+                <SidebarMenuButton onClick={() => toggleMenu('doctors')} isActive={isActive("/admin/physicians")} tooltip="Doctors">
+                  <Stethoscope />
+                  <span>Doctors</span>
+                  {openMenus.doctors ? <ChevronDown className="ml-auto h-4 w-4 group-data-[collapsible=icon]:hidden" /> : <ChevronRight className="ml-auto h-4 w-4 group-data-[collapsible=icon]:hidden" />}
                 </SidebarMenuButton>
+                {openMenus.doctors && (
+                  <SidebarMenuSub className="group-data-[collapsible=icon]:hidden">
+                    <li><SidebarMenuSubButton asChild isActive={isActive("/admin/physicians", true) && !pathname.includes("/add")}><Link href="/admin/physicians"><List className="h-3.5 w-3.5"/>Doctors List</Link></SidebarMenuSubButton></li>
+                    <li><SidebarMenuSubButton asChild isActive={isActive("/admin/physicians/add")}><Link href="/admin/physicians/add"><PlusCircle className="h-3.5 w-3.5"/>Add Doctor</Link></SidebarMenuSubButton></li>
+                  </SidebarMenuSub>
+                )}
               </SidebarMenuItem>
 
               <SidebarMenuItem>
-                <SidebarMenuButton
-                  asChild
-                  isActive={isActive("/admin/customers")}
-                  tooltip="Patients"
-                >
-                  <Link href="/admin/customers">
-                    <Users2 />
-                    <span>Patients</span>
-                  </Link>
+                <SidebarMenuButton asChild isActive={isActive("/admin/customers")} tooltip="Patients">
+                  <Link href="/admin/customers"><Users2 /><span>Patients</span></Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
 
                <SidebarMenuItem>
-                <SidebarMenuButton
-                  asChild
-                  isActive={isActive("/admin/payments")}
-                  tooltip="Payments"
-                >
-                  <Link href="/admin/payments">
-                    <CreditCard />
-                    <span>Payments</span>
-                  </Link>
+                <SidebarMenuButton asChild isActive={isActive("/admin/payments")} tooltip="Payments">
+                  <Link href="/admin/payments"><CreditCard /><span>Payments</span></Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </>
            )}
-
-          {/* Placeholder links from Doctris theme - for admin */}
-          {isAdmin && (
-            <>
-              {/* Example Placeholder: <SidebarMenuItem><SidebarMenuButton tooltip="Pharmacy"><Pill /><span>Pharmacy</span></SidebarMenuButton></SidebarMenuItem> */}
-              {/* Example Placeholder: <SidebarMenuItem><SidebarMenuButton tooltip="Blogs"><FileText /><span>Blogs</span></SidebarMenuButton></SidebarMenuItem> */}
-            </>
-          )}
           
-          {/* Admin specific management links */}
           {isAdmin && (
              <>
               <Separator className="my-3" />
               <p className="px-4 text-xs font-semibold text-muted-foreground group-data-[collapsible=icon]:hidden mb-1">Admin Tools</p>
+              
+              {/* Users Group */}
               <SidebarMenuItem>
-                <SidebarMenuButton
-                  asChild
-                  isActive={isActive("/admin/users")}
-                  tooltip="User Management"
-                >
-                  <Link href="/admin/users">
-                    <Users />
-                    <span>Users</span>
-                  </Link>
+                <SidebarMenuButton onClick={() => toggleMenu('users')} isActive={isActive("/admin/users")} tooltip="User Management">
+                  <Users />
+                  <span>Users</span>
+                  {openMenus.users ? <ChevronDown className="ml-auto h-4 w-4 group-data-[collapsible=icon]:hidden" /> : <ChevronRight className="ml-auto h-4 w-4 group-data-[collapsible=icon]:hidden" />}
                 </SidebarMenuButton>
+                {openMenus.users && (
+                  <SidebarMenuSub className="group-data-[collapsible=icon]:hidden">
+                    <li><SidebarMenuSubButton asChild isActive={isActive("/admin/users", true) && !pathname.includes("/add")}><Link href="/admin/users"><List className="h-3.5 w-3.5"/>Users List</Link></SidebarMenuSubButton></li>
+                    <li><SidebarMenuSubButton asChild isActive={isActive("/admin/users/add")}><Link href="/admin/users/add"><PlusCircle className="h-3.5 w-3.5"/>Add User</Link></SidebarMenuSubButton></li>
+                  </SidebarMenuSub>
+                )}
               </SidebarMenuItem>
 
+              {/* Roles Group */}
               <SidebarMenuItem>
-                <SidebarMenuButton
-                  asChild
-                  isActive={isActive("/admin/roles")}
-                  tooltip="Role Management"
-                >
-                  <Link href="/admin/roles">
-                    <ShieldCheck />
-                    <span>Roles</span>
-                  </Link>
+                <SidebarMenuButton onClick={() => toggleMenu('roles')} isActive={isActive("/admin/roles")} tooltip="Role Management">
+                  <ShieldCheck />
+                  <span>Roles</span>
+                  {openMenus.roles ? <ChevronDown className="ml-auto h-4 w-4 group-data-[collapsible=icon]:hidden" /> : <ChevronRight className="ml-auto h-4 w-4 group-data-[collapsible=icon]:hidden" />}
                 </SidebarMenuButton>
+                {openMenus.roles && (
+                  <SidebarMenuSub className="group-data-[collapsible=icon]:hidden">
+                     <li><SidebarMenuSubButton asChild isActive={isActive("/admin/roles", true) && !pathname.includes("/add")}><Link href="/admin/roles"><List className="h-3.5 w-3.5"/>Roles List</Link></SidebarMenuSubButton></li>
+                    <li><SidebarMenuSubButton asChild isActive={isActive("/admin/roles/add")}><Link href="/admin/roles/add"><PlusCircle className="h-3.5 w-3.5"/>Add Role</Link></SidebarMenuSubButton></li>
+                  </SidebarMenuSub>
+                )}
               </SidebarMenuItem>
+
                <SidebarMenuItem>
-                <SidebarMenuButton
-                  asChild
-                  isActive={isActive("/admin/settings")}
-                  tooltip="Settings"
-                >
-                  <Link href="/admin/settings">
-                    <Settings />
-                    <span>Settings</span>
-                  </Link>
+                <SidebarMenuButton asChild isActive={isActive("/admin/settings")} tooltip="Settings">
+                  <Link href="/admin/settings"><Settings /><span>Settings</span></Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </>
           )}
 
-          {/* Profile - accessible by all authenticated users */}
            <Separator className="my-3 mt-auto group-data-[collapsible=icon]:hidden" />
           {isAuthenticated && (
              <SidebarMenuItem>
-              <SidebarMenuButton
-                asChild
-                isActive={isActive("/admin/profile")}
-                tooltip="Profile"
-              >
-                <Link href="/admin/profile">
-                  <User />
-                  <span>Profile</span>
-                </Link>
+              <SidebarMenuButton asChild isActive={isActive("/admin/profile")} tooltip="Profile">
+                <Link href="/admin/profile"><User /><span>Profile</span></Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
           )}
-
         </SidebarMenu>
       </SidebarContent>
       
@@ -226,8 +187,7 @@ export function AdminSidebar() {
            <SidebarMenu>
              <SidebarMenuItem>
                <SidebarMenuButton tooltip="Logout" onClick={handleLogout}>
-                 <LogOut />
-                 <span>Logout</span>
+                 <LogOut /><span>Logout</span>
                </SidebarMenuButton>
              </SidebarMenuItem>
            </SidebarMenu>
