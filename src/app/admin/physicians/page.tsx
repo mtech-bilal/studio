@@ -14,14 +14,8 @@ import { client } from '@/sanity/client'; // Import Sanity client
 import type { SanityDocument } from 'next-sanity';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
+import { createPhysician, updatePhysician, deletePhysician, type Physician, type PhysicianInputData } from '@/actions/physicianActions'; // Import server actions
 
-interface Physician extends SanityDocument {
-  name: string;
-  specialty: string;
-  ratePhysical: number | null;
-  rateOnline: number | null;
-  // userAccount?: { _ref: string; _type: 'reference' }; // If linking to user accounts
-}
 
 const ITEMS_PER_PAGE = 6;
 
@@ -29,25 +23,6 @@ const formatCurrency = (amount: number | null) => {
   if (amount === null || isNaN(amount)) return "N/A";
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(amount);
 };
-
-// Server Actions for Sanity CUD operations
-async function createPhysician(data: Omit<Physician, '_id' | '_type' | '_rev' | '_createdAt' | '_updatedAt'>): Promise<Physician> {
-  "use server";
-  // Ensure SANITY_API_TOKEN is set for write operations from server
-  const newPhysician = await client.create({ _type: 'physician', ...data });
-  return newPhysician as Physician;
-}
-
-async function updatePhysician(id: string, data: Partial<Omit<Physician, '_id' | '_type' | '_rev' | '_createdAt' | '_updatedAt'>>): Promise<Physician> {
-  "use server";
-  const updatedPhysician = await client.patch(id).set(data).commit();
-  return updatedPhysician as Physician;
-}
-
-async function deletePhysician(id: string): Promise<void> {
-  "use server";
-  await client.delete(id);
-}
 
 
 export default function PhysicianManagementPage() {
@@ -67,7 +42,7 @@ export default function PhysicianManagementPage() {
   const fetchPhysicians = async () => {
     setIsLoading(true);
     try {
-      const query = '*[_type == "physician"] | order(_createdAt desc)';
+      const query = '*[_type == "physician"]{_id, _createdAt, _updatedAt, _rev, _type, name, specialty, ratePhysical, rateOnline, userAccount} | order(_createdAt desc)';
       const sanityPhysicians: Physician[] = await client.fetch(query);
       setPhysicians(sanityPhysicians);
     } catch (error) {
@@ -115,54 +90,55 @@ export default function PhysicianManagementPage() {
         return;
     }
 
-    const physicianData = { name, specialty, ratePhysical: physicalRate, rateOnline: onlineRate };
+    const physicianData: PhysicianInputData = { name, specialty, ratePhysical: physicalRate, rateOnline: onlineRate };
 
     try {
-      setIsLoading(true); // For the save operation
+      // setIsLoading(true); // For the save operation
       if (editingPhysician) {
         startTransition(async () => {
             await updatePhysician(editingPhysician._id, physicianData);
             toast({ title: "Success", description: "Physician updated."});
+            await fetchPhysicians(); // Refresh list
+            handleCloseDialog();
         });
       } else {
         startTransition(async () => {
             await createPhysician(physicianData);
-             toast({ title: "Success", description: "Physician added."});
+            toast({ title: "Success", description: "Physician added."});
+            await fetchPhysicians(); // Refresh list
+            handleCloseDialog();
         });
       }
-      await fetchPhysicians(); // Refresh list
-      handleCloseDialog();
     } catch (error) {
       console.error("Failed to save physician:", error);
       toast({ title: "Error", description: "Could not save physician.", variant: "destructive" });
     } finally {
       // More granular loading for dialog if needed
-      setIsLoading(false);
+      // setIsLoading(false);
     }
   };
 
   const handleDeletePhysician = async (id: string) => {
     if (!confirm("Are you sure you want to delete this physician?")) return;
     try {
-      setIsLoading(true);
+      // setIsLoading(true);
       startTransition(async () => {
         await deletePhysician(id);
         toast({ title: "Success", description: "Physician deleted."});
+        await fetchPhysicians();
+        // Adjust current page if necessary
+        const newTotalPages = Math.ceil((totalPhysicians - 1) / ITEMS_PER_PAGE);
+        if (currentPage > newTotalPages && newTotalPages > 0) {
+            setCurrentPage(newTotalPages);
+        } else if (totalPhysicians -1 === 0) {
+            setCurrentPage(1);
+        }
       });
-      await fetchPhysicians();
-       // Adjust current page if necessary
-      const newTotalPages = Math.ceil((totalPhysicians - 1) / ITEMS_PER_PAGE);
-      if (currentPage > newTotalPages && newTotalPages > 0) {
-        setCurrentPage(newTotalPages);
-      } else if (totalPhysicians -1 === 0) {
-        setCurrentPage(1);
-      }
-
     } catch (error) {
       console.error("Failed to delete physician:", error);
       toast({ title: "Error", description: "Could not delete physician.", variant: "destructive" });
     } finally {
-        setIsLoading(false);
+        // setIsLoading(false);
     }
   };
 

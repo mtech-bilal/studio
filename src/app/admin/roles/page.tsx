@@ -12,35 +12,7 @@ import { client } from '@/sanity/client';
 import type { SanityDocument } from 'next-sanity';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
-
-interface Role extends SanityDocument {
-  name: string; // Internal name
-  title: string; // Display title
-}
-
-// Server Action (placeholder for actual implementation if needed, or direct client calls for simplicity now)
-async function createRoleInSanity(roleData: Omit<Role, '_id' | '_type' | '_rev' | '_createdAt' | '_updatedAt'>): Promise<Role> {
-  'use server';
-  // In a real setup, ensure SANITY_API_TOKEN has write access for this.
-  // Using the standard client here might rely on it being configured with a token for mutations,
-  // or this server action running in an environment where the token is available.
-  // For non-server components, mutations from client side are generally discouraged for security.
-  // Let's assume this is a server action context.
-  const newRole = await client.create({ _type: 'role', ...roleData });
-  return newRole as Role;
-}
-
-async function updateRoleInSanity(roleId: string, roleData: Partial<Omit<Role, '_id' | '_type' | '_rev' | '_createdAt' | '_updatedAt'>>): Promise<Role> {
-  'use server';
-  const updatedRole = await client.patch(roleId).set(roleData).commit();
-  return updatedRole as Role;
-}
-
-async function deleteRoleFromSanity(roleId: string): Promise<void> {
-  'use server';
-  await client.delete(roleId);
-}
-
+import { createRole, updateRole, deleteRole, type Role } from '@/actions/roleActions'; // Import server actions
 
 export default function RoleManagementPage() {
   const [roles, setRoles] = useState<Role[]>([]);
@@ -56,7 +28,7 @@ export default function RoleManagementPage() {
   const fetchRoles = async () => {
     setIsLoading(true);
     try {
-      const sanityRoles: Role[] = await client.fetch('*[_type == "role"]{_id, _createdAt, name, title}');
+      const sanityRoles: Role[] = await client.fetch('*[_type == "role"]{_id, _createdAt, _updatedAt, _rev, _type, name, title}');
       setRoles(sanityRoles);
     } catch (error) {
       console.error("Failed to fetch roles:", error);
@@ -96,26 +68,28 @@ export default function RoleManagementPage() {
     const roleData = { name: roleInternalName.toLowerCase(), title: roleDisplayTitle };
 
     try {
-        setIsLoading(true); // Indicate loading for save operation
+        // For UI feedback, you can set a specific loading state for the dialog if needed
+        // setIsLoading(true); 
         if (editingRole) {
          startTransition(async () => {
-            await updateRoleInSanity(editingRole._id, roleData);
+            await updateRole(editingRole._id, roleData);
             toast({ title: "Success", description: "Role updated successfully." });
+            await fetchRoles(); // Refresh list
+            handleCloseDialog();
           });
         } else {
           startTransition(async () => {
-            await createRoleInSanity(roleData);
+            await createRole(roleData);
             toast({ title: "Success", description: "Role created successfully." });
+            await fetchRoles(); // Refresh list
+            handleCloseDialog();
           });
         }
-        await fetchRoles(); // Refresh list
-        handleCloseDialog();
     } catch (error) {
         console.error("Failed to save role:", error);
         toast({ title: "Error", description: "Could not save role.", variant: "destructive" });
     } finally {
-        // setLoading state for save operation can be handled more granularly if needed
-        setIsLoading(false);
+        // setIsLoading(false);
     }
   };
 
@@ -124,17 +98,17 @@ export default function RoleManagementPage() {
         return;
     }
     try {
-        setIsLoading(true);
+        // setIsLoading(true);
          startTransition(async () => {
-            await deleteRoleFromSanity(id);
+            await deleteRole(id);
             toast({ title: "Success", description: "Role deleted successfully." });
+            await fetchRoles(); // Refresh list
         });
-        await fetchRoles(); // Refresh list
     } catch (error) {
         console.error("Failed to delete role:", error);
         toast({ title: "Error", description: "Could not delete role. It might be in use.", variant: "destructive" });
     } finally {
-        setIsLoading(false);
+        // setIsLoading(false);
     }
   };
   
