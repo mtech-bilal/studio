@@ -21,76 +21,76 @@ body {
     --secondary-foreground: 215 15% 55%; /* Muted Gray #8492a6 */
     --muted: 220 15% 95%; /* Very Light Gray #f1f3f7 */
     --muted-foreground: 215 15% 65%; /* Slightly Lighter Muted Gray #98a6ad */
-    --accent: 160 60% 45%; /* Teal/Green #32a88a */
-    --accent-foreground: 0 0% 100%; /* White */
+    --accent: 225 85% 60%; /* Using Primary Blue as Accent for active states */
+    --accent-foreground: 0 0% 100%; /* White for accent text */
     --destructive: 0 80% 65%; /* Red #f17474 */
     --destructive-foreground: 0 0% 100%; /* White */
     --border: 220 15% 90%; /* Light Gray Border #e9ecef */
-    --input: 0 0% 100%; /* White input background */
+    --input: 220 15% 96%; /* Slightly off-white for input background #f5f7fa */
     --input-border: 220 15% 85%; /* Slightly darker gray border #dde1e7 */
     --ring: 225 85% 60%; /* Blue for focus rings */
 
-    /* Chart Colors - Keep existing or adjust as needed */
-    --chart-1: 225 85% 60%; /* Blue */
-    --chart-2: 160 60% 45%; /* Teal */
-    --chart-3: 30 80% 60%; /* Orange */
-    --chart-4: 260 60% 65%; /* Lavender */
-    --chart-5: 0 80% 65%;  /* Red */
+    /* Chart Colors - Doctris inspired */
+    --chart-1: 210 90% 50%; /* Blue */
+    --chart-2: 150 70% 45%; /* Green */
+    --chart-3: 35 90% 60%;  /* Orange */
+    --chart-4: 260 70% 65%; /* Purple */
+    --chart-5: 0 75% 60%;   /* Red */
 
 
     /* Radius */
-    --radius: 0.5rem;
+    --radius: 0.375rem; /* 6px, common in modern UIs */
 
-    /* Sidebar Colors (adjusted for new theme - white sidebar) */
+    /* Sidebar Colors (Doctris style - white sidebar) */
     --sidebar-background: 0 0% 100%; /* White */
-    --sidebar-foreground: 215 25% 25%; /* Dark Text */
-    --sidebar-primary: 225 85% 60%; /* Blue for active/icons */
+    --sidebar-foreground: 215 25% 35%; /* Darker Gray Text for sidebar #49586c */
+    --sidebar-primary: 225 85% 60%; /* Blue for active icons/text */
     --sidebar-primary-foreground: 0 0% 100%; /* White */
     --sidebar-accent: 220 60% 97%; /* Very Light Blue/Gray for hover #f4f7fc */
     --sidebar-accent-foreground: 225 85% 55%; /* Slightly Darker Blue for hover text #3366e6 */
-    --sidebar-border: 220 15% 90%; /* Light Gray Border #e9ecef */
+    --sidebar-border: 220 15% 92%; /* Lighter Gray Border for sidebar #edf0f4 */
     --sidebar-ring: 225 85% 60%; /* Blue */
   }
 
   .dark {
-    /* Dark Theme Variant (Derived) */
-    --background: 220 15% 15%; /* Dark Blue/Gray #1f242e */
+    /* Dark Theme Variant (Derived from Doctris light) */
+    --background: 220 15% 12%; /* Darker Blue/Gray #1a1f29 */
     --foreground: 210 20% 95%; /* Light Gray #f0f4f8 */
-    --card: 220 15% 20%; /* Slightly Lighter Dark Blue/Gray #28303e */
+    --card: 220 15% 18%; /* Dark Blue/Gray #242b37 */
     --card-foreground: 210 20% 95%; /* Light Gray */
-    --popover: 220 15% 18%; /* Darker Popover #242b37 */
+    --popover: 220 15% 15%; /* Darker Popover #1f242e */
     --popover-foreground: 210 20% 95%; /* Light Gray */
-    --primary: 225 85% 65%; /* Lighter Blue #5f8afa */
+    --primary: 225 80% 65%; /* Lighter Blue for dark mode #668ef3 */
     --primary-foreground: 220 15% 10%; /* Very Dark Blue/Gray #14181e */
     --secondary: 220 15% 25%; /* Dark Slate #303a4d */
     --secondary-foreground: 210 20% 85%; /* Lighter Gray */
-    --muted: 220 15% 30%; /* Darker Slate #3a455a */
+    --muted: 220 15% 22%; /* Darker Slate #2c3545 */
     --muted-foreground: 210 20% 65%; /* Medium Gray */
-    --accent: 160 60% 50%; /* Lighter Teal #40c49f */
+    --accent: 225 80% 65%; /* Lighter Blue as Accent for dark mode */
     --accent-foreground: 220 15% 10%; /* Very Dark Blue/Gray */
     --destructive: 0 70% 60%; /* Lighter Red #f37c7c */
     --destructive-foreground: 210 20% 95%; /* Light Gray */
-    --border: 220 15% 35%; /* Blue Gray Border #44526b */
-    --input: 220 15% 22%; /* Darker Input #2c3545 */
+    --border: 220 15% 30%; /* Blue Gray Border #3a455a */
+    --input: 220 15% 20%; /* Darker Input Background #28303e */
     --input-border: 220 15% 40%; /* Medium Blue Gray Border #51617b */
-    --ring: 225 85% 65%; /* Lighter Blue for focus rings */
+    --ring: 225 80% 65%; /* Lighter Blue for focus rings */
 
     /* Chart Colors */
-    --chart-1: 225 85% 65%; /* Lighter Blue */
-    --chart-2: 160 60% 50%; /* Lighter Teal */
-    --chart-3: 35 90% 60%; /* Bright Orange */
-    --chart-4: 260 60% 70%; /* Brighter Lavender */
-    --chart-5: 0 70% 60%; /* Lighter Red */
+    --chart-1: 210 90% 60%; 
+    --chart-2: 150 70% 55%; 
+    --chart-3: 35 90% 65%;  
+    --chart-4: 260 70% 70%; 
+    --chart-5: 0 75% 65%;   
 
-    /* Sidebar Colors (adjusted for dark theme - dark sidebar) */
-    --sidebar-background: 220 15% 18%; /* Dark Sidebar #242b37 */
+    /* Sidebar Colors (dark theme - dark sidebar) */
+    --sidebar-background: 220 15% 15%; /* Dark Sidebar #1f242e */
     --sidebar-foreground: 210 20% 90%; /* Light Gray */
-    --sidebar-primary: 225 85% 65%; /* Lighter Blue */
+    --sidebar-primary: 225 80% 65%; /* Lighter Blue */
     --sidebar-primary-foreground: 220 15% 10%; /* Very Dark Blue/Gray */
     --sidebar-accent: 220 15% 28%; /* Hover background #364154 */
-    --sidebar-accent-foreground: 225 85% 70%; /* Hover text #799fff */
-    --sidebar-border: 220 15% 30%; /* Border #3a455a */
-    --sidebar-ring: 225 85% 65%; /* Lighter Blue */
+    --sidebar-accent-foreground: 225 80% 70%; /* Hover text #7f9ff5 */
+    --sidebar-border: 220 15% 25%; /* Border #303a4d */
+    --sidebar-ring: 225 80% 65%; /* Lighter Blue */
   }
 }
 

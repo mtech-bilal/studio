@@ -8,13 +8,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { MoreHorizontal, UserPlus, Edit, Trash2, Stethoscope, Monitor, Users } from "lucide-react";
+import { MoreHorizontal, UserPlus, Edit, Trash2, Stethoscope, Monitor, Users as UsersIcon } from "lucide-react"; // Renamed Users to UsersIcon to avoid conflict
 import { PaginationControls } from '@/components/PaginationControls';
-import { client } from '@/sanity/client'; // Import Sanity client
-import type { SanityDocument } from 'next-sanity';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
-import { createPhysician, updatePhysician, deletePhysician, type Physician, type PhysicianInputData } from '@/actions/physicianActions'; // Import server actions
+import { fetchMockPhysicians, createPhysician, updatePhysician, deletePhysician, type Physician, type PhysicianInputData } from '@/actions/physicianActions';
 
 
 const ITEMS_PER_PAGE = 6;
@@ -39,12 +37,16 @@ export default function PhysicianManagementPage() {
   const [ratePhysical, setRatePhysical] = useState<string>('');
   const [rateOnline, setRateOnline] = useState<string>('');
 
-  const fetchPhysicians = async () => {
+  const loadPhysicians = async () => {
     setIsLoading(true);
     try {
-      const query = '*[_type == "physician"]{_id, _createdAt, _updatedAt, _rev, _type, name, specialty, ratePhysical, rateOnline, userAccount} | order(_createdAt desc)';
-      const sanityPhysicians: Physician[] = await client.fetch(query);
-      setPhysicians(sanityPhysicians);
+      const mockPhysiciansList = await fetchMockPhysicians();
+      // Sort by createdAt descending if available, otherwise by name or _id as fallback
+      mockPhysiciansList.sort((a, b) => {
+        if (a._createdAt && b._createdAt) return new Date(b._createdAt).getTime() - new Date(a._createdAt).getTime();
+        return a.name.localeCompare(b.name);
+      });
+      setPhysicians(mockPhysiciansList);
     } catch (error) {
       console.error("Failed to fetch physicians:", error);
       toast({ title: "Error", description: "Could not fetch physicians.", variant: "destructive" });
@@ -54,7 +56,7 @@ export default function PhysicianManagementPage() {
   };
 
   useEffect(() => {
-    fetchPhysicians();
+    loadPhysicians();
   }, []);
 
   const totalPhysicians = physicians.length;
@@ -93,19 +95,19 @@ export default function PhysicianManagementPage() {
     const physicianData: PhysicianInputData = { name, specialty, ratePhysical: physicalRate, rateOnline: onlineRate };
 
     try {
-      // setIsLoading(true); // For the save operation
+      setIsLoading(true); // Indicate loading for the save operation
       if (editingPhysician) {
         startTransition(async () => {
             await updatePhysician(editingPhysician._id, physicianData);
             toast({ title: "Success", description: "Physician updated."});
-            await fetchPhysicians(); // Refresh list
+            await loadPhysicians(); // Refresh list
             handleCloseDialog();
         });
       } else {
         startTransition(async () => {
             await createPhysician(physicianData);
             toast({ title: "Success", description: "Physician added."});
-            await fetchPhysicians(); // Refresh list
+            await loadPhysicians(); // Refresh list
             handleCloseDialog();
         });
       }
@@ -113,24 +115,22 @@ export default function PhysicianManagementPage() {
       console.error("Failed to save physician:", error);
       toast({ title: "Error", description: "Could not save physician.", variant: "destructive" });
     } finally {
-      // More granular loading for dialog if needed
-      // setIsLoading(false);
+      setIsLoading(false); // Reset loading state after operation
     }
   };
 
   const handleDeletePhysician = async (id: string) => {
     if (!confirm("Are you sure you want to delete this physician?")) return;
     try {
-      // setIsLoading(true);
+      setIsLoading(true);
       startTransition(async () => {
         await deletePhysician(id);
         toast({ title: "Success", description: "Physician deleted."});
-        await fetchPhysicians();
-        // Adjust current page if necessary
-        const newTotalPages = Math.ceil((totalPhysicians - 1) / ITEMS_PER_PAGE);
+        await loadPhysicians();
+        const newTotalPages = Math.ceil((physicians.length - 1) / ITEMS_PER_PAGE);
         if (currentPage > newTotalPages && newTotalPages > 0) {
             setCurrentPage(newTotalPages);
-        } else if (totalPhysicians -1 === 0) {
+        } else if (physicians.length -1 === 0) { // Check actual length after potential deletion
             setCurrentPage(1);
         }
       });
@@ -138,7 +138,7 @@ export default function PhysicianManagementPage() {
       console.error("Failed to delete physician:", error);
       toast({ title: "Error", description: "Could not delete physician.", variant: "destructive" });
     } finally {
-        // setIsLoading(false);
+        setIsLoading(false);
     }
   };
 
@@ -171,7 +171,7 @@ export default function PhysicianManagementPage() {
     <div className="space-y-6">
        <div className="flex justify-between items-center">
          <h1 className="text-3xl font-bold tracking-tight">Physician Management</h1>
-         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+         <Dialog open={isDialogOpen} onOpenChange={(isOpen) => { if (!isOpen) handleCloseDialog(); else setIsDialogOpen(true);}}>
            <DialogTrigger asChild>
              <Button onClick={() => handleOpenDialog()}>
                 <UserPlus className="mr-2 h-4 w-4" /> Add New Physician
@@ -204,7 +204,9 @@ export default function PhysicianManagementPage() {
              </div>
              <DialogFooter>
                <Button variant="outline" onClick={handleCloseDialog}>Cancel</Button>
-               <Button onClick={handleSavePhysician}>Save Physician</Button>
+               <Button onClick={handleSavePhysician} disabled={isLoading}>
+                 {isLoading && editingPhysician ? 'Saving...' : isLoading ? 'Adding...' : 'Save Physician'}
+                </Button>
              </DialogFooter>
            </DialogContent>
          </Dialog>
@@ -229,7 +231,7 @@ export default function PhysicianManagementPage() {
                      </CardHeader>
                      <CardContent className="space-y-2 text-sm pt-0 pb-4">
                        <div className="flex items-center">
-                         <Users className="h-4 w-4 mr-1.5 text-primary" />
+                         <UsersIcon className="h-4 w-4 mr-1.5 text-primary" />
                          Physical Rate: <span className="font-medium ml-1">{formatCurrency(physician.ratePhysical)}</span>
                        </div>
                        <div className="flex items-center">
@@ -240,7 +242,7 @@ export default function PhysicianManagementPage() {
                      <CardFooter className="flex justify-end border-t pt-3 pb-3 px-4">
                         <DropdownMenu>
                          <DropdownMenuTrigger asChild>
-                           <Button aria-haspopup="true" size="sm" variant="ghost">
+                           <Button aria-haspopup="true" size="sm" variant="ghost" disabled={isLoading}>
                              <MoreHorizontal className="h-4 w-4" />
                              <span className="sr-only">Actions</span>
                            </Button>
@@ -259,13 +261,15 @@ export default function PhysicianManagementPage() {
                    </Card>
                  ))}
                </div>
-               <PaginationControls
-                  currentPage={currentPage}
-                  totalPages={totalPages}
-                  onPageChange={handlePageChange}
-                  itemsPerPage={ITEMS_PER_PAGE}
-                  totalItems={totalPhysicians}
-                />
+               {totalPages > 1 && (
+                 <PaginationControls
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    onPageChange={handlePageChange}
+                    itemsPerPage={ITEMS_PER_PAGE}
+                    totalItems={totalPhysicians}
+                  />
+               )}
             </>
            ) : (
               <p className="text-center text-muted-foreground py-8">{isLoading ? 'Loading...' : 'No physicians found. Add one to get started.'}</p>

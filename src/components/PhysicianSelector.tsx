@@ -10,52 +10,46 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { SelectProps } from "@radix-ui/react-select";
-import { client } from "@/sanity/client";
-import type { SanityDocument } from "next-sanity";
-
-interface PhysicianOptionSanity extends SanityDocument {
-  name: string;
-  specialty: string;
-}
+import type { Physician } from "@/actions/physicianActions"; // Use Physician type from actions
+// Removed Sanity client import
 
 interface PhysicianSelectorProps extends SelectProps {
    onValueChange?: (value: string) => void;
    value?: string;
+   physiciansList?: Physician[]; // Optional: pass pre-fetched list
+   isLoading?: boolean; // Optional: parent can control loading state
 }
 
-export function PhysicianSelector({ onValueChange, value, ...props }: PhysicianSelectorProps) {
-  const [physicians, setPhysicians] = React.useState<PhysicianOptionSanity[]>([]);
-  const [isLoading, setIsLoading] = React.useState(true);
+export function PhysicianSelector({ 
+    onValueChange, 
+    value, 
+    physiciansList, 
+    isLoading: parentIsLoading, 
+    ...props 
+}: PhysicianSelectorProps) {
+  // Use the passed list if available, otherwise an empty array
+  const physiciansToDisplay = physiciansList || [];
+  // isLoading is true if parent says so, or if no list is provided yet (implying it might be loading internally - though this component no longer fetches)
+  const isLoading = parentIsLoading !== undefined ? parentIsLoading : !physiciansList;
 
-  React.useEffect(() => {
-    const fetchPhysicians = async () => {
-      setIsLoading(true);
-      try {
-        const query = '*[_type == "physician"]{_id, name, specialty} | order(name asc)';
-        const sanityPhysicians: PhysicianOptionSanity[] = await client.fetch(query);
-        setPhysicians(sanityPhysicians);
-      } catch (error) {
-        console.error("Failed to fetch physicians for selector:", error);
-        // Handle error appropriately in UI if needed
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchPhysicians();
-  }, []);
 
   return (
-    <Select onValueChange={onValueChange} value={value} {...props} disabled={isLoading || physicians.length === 0}>
+    <Select 
+        onValueChange={onValueChange} 
+        value={value} 
+        {...props} 
+        disabled={isLoading || physiciansToDisplay.length === 0}
+    >
       <SelectTrigger className="w-full">
-        <SelectValue placeholder={isLoading ? "Loading physicians..." : "Select a Physician"} />
+        <SelectValue placeholder={isLoading ? "Loading physicians..." : (physiciansToDisplay.length === 0 ? "No physicians available" : "Select a Physician")} />
       </SelectTrigger>
       <SelectContent>
         {isLoading ? (
           <SelectItem value="loading" disabled>Loading...</SelectItem>
-        ) : physicians.length === 0 ? (
+        ) : physiciansToDisplay.length === 0 ? (
           <SelectItem value="no-physicians" disabled>No physicians available</SelectItem>
         ) : (
-          physicians.map((physician) => (
+          physiciansToDisplay.map((physician) => (
             <SelectItem key={physician._id} value={physician._id}>
               {physician.name} - {physician.specialty}
             </SelectItem>

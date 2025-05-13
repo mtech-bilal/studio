@@ -6,42 +6,52 @@ import { BookingForm } from '@/components/BookingForm';
 import { PhysicianSelector } from '@/components/PhysicianSelector';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
-import { Button } from '@/components/ui/button'; // Added Button
-import { Stethoscope, RotateCcw } from 'lucide-react'; // Added RotateCcw
-import { client } from '@/sanity/client'; // Import Sanity client
-import type { SanityDocument } from 'next-sanity';
-import { Skeleton } from '@/components/ui/skeleton'; // Added Skeleton
+import { Button } from '@/components/ui/button';
+import { Stethoscope, RotateCcw } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
+import type { Physician } from '@/actions/physicianActions'; // Use Physician type from actions
+import { fetchMockPhysicians } from '@/actions/physicianActions'; // Use mock fetch function
 
-interface PhysicianDetails extends SanityDocument {
-  name: string;
-  specialty: string;
-  ratePhysical: number | null;
-  rateOnline: number | null;
-}
+// Interface for physician details used in this page
+interface PhysicianDetailsPage extends Physician {}
 
 export default function GenericBookingPage() {
   const [selectedPhysicianId, setSelectedPhysicianId] = useState<string | undefined>(undefined);
-  const [selectedPhysicianDetails, setSelectedPhysicianDetails] = useState<PhysicianDetails | null>(null);
+  const [selectedPhysicianDetails, setSelectedPhysicianDetails] = useState<PhysicianDetailsPage | null>(null);
   const [isLoadingDetails, setIsLoadingDetails] = useState(false);
+  const [allPhysicians, setAllPhysicians] = useState<Physician[]>([]); // Store all physicians for local lookup
 
-  const fetchPhysicianDetails = async (id: string) => {
+  // Fetch all physicians once to avoid multiple calls
+  useEffect(() => {
+    const loadInitialPhysicians = async () => {
+      setIsLoadingDetails(true); // Use this for initial load as well
+      try {
+        const physiciansList = await fetchMockPhysicians();
+        setAllPhysicians(physiciansList);
+      } catch (error) {
+        console.error("Failed to fetch initial physicians list:", error);
+      } finally {
+        setIsLoadingDetails(false);
+      }
+    };
+    loadInitialPhysicians();
+  }, []);
+
+
+  const findPhysicianDetails = (id: string) => {
     setIsLoadingDetails(true);
-    try {
-      const query = '*[_type == "physician" && _id == $id][0]{_id, name, specialty, ratePhysical, rateOnline}';
-      const details: PhysicianDetails | null = await client.fetch(query, { id });
-      setSelectedPhysicianDetails(details);
-    } catch (error) {
-      console.error("Failed to fetch physician details:", error);
-      setSelectedPhysicianDetails(null); // Clear details on error
-    } finally {
+    // Simulate async fetch, but use local data
+    setTimeout(() => {
+      const details = allPhysicians.find(p => p._id === id);
+      setSelectedPhysicianDetails(details || null);
       setIsLoadingDetails(false);
-    }
+    }, 200); // Short delay to mimic network
   };
   
   const handlePhysicianSelect = (id: string | undefined) => {
     setSelectedPhysicianId(id);
     if (id) {
-      fetchPhysicianDetails(id);
+      findPhysicianDetails(id);
     } else {
       setSelectedPhysicianDetails(null);
     }
@@ -71,6 +81,8 @@ export default function GenericBookingPage() {
                   onValueChange={handlePhysicianSelect}
                   aria-label="Select Physician"
                   id="physician-select"
+                  physiciansList={allPhysicians} // Pass fetched list to selector
+                  isLoading={isLoadingDetails && allPhysicians.length === 0} // Selector handles its own loading text based on this
                 />
               </div>
             </CardContent>
@@ -92,9 +104,6 @@ export default function GenericBookingPage() {
             <BookingForm
               physicianId={selectedPhysicianDetails._id}
               physicianName={selectedPhysicianDetails.name}
-              // Pass rates if BookingForm needs them for display or logic
-              // ratePhysical={selectedPhysicianDetails.ratePhysical}
-              // rateOnline={selectedPhysicianDetails.rateOnline}
             />
              <Button variant="outline" onClick={handleResetSelection} className="mt-4 w-full sm:w-auto">
                  <RotateCcw className="mr-2 h-4 w-4" /> Change Physician

@@ -1,24 +1,24 @@
 // src/actions/bookingActions.ts
 "use server";
 
-import { client } from "@/sanity/client";
 import { revalidatePath } from "next/cache";
-import type { SanityDocument } from "next-sanity";
+// Removed SanityDocument import
 
 interface BookingData {
   customerName: string;
   customerEmail: string;
-  physicianId: string; // This will be a reference: {_type: 'reference', _ref: physicianId}
+  physicianId: string;
   bookingDateTime: string; // ISO string
   serviceType?: 'physical' | 'online';
   status?: string;
 }
 
-export interface BookingResult extends SanityDocument {
+// Simplified BookingResult as SanityDocument is no longer used
+export interface BookingResult {
+  _id: string; // Mock ID
   customerName: string;
   physician: {
-    _ref: string;
-    _type: 'reference';
+    _id: string; // Mock physician ID
     name?: string; // For confirmation page
   };
   bookingDateTime: string;
@@ -27,43 +27,32 @@ export interface BookingResult extends SanityDocument {
 
 export async function submitBooking(data: BookingData): Promise<{success: boolean, booking?: BookingResult, error?: string}> {
   try {
-    const bookingPayload = {
-      _type: 'booking',
-      customerName: data.customerName,
-      customerEmail: data.customerEmail,
-      physician: {
-        _type: 'reference',
-        _ref: data.physicianId,
-      },
-      bookingDateTime: data.bookingDateTime,
-      serviceType: data.serviceType,
-      status: data.status || 'pending', // Default status
-    };
+    // Mock booking creation
+    console.log("Mock booking submission:", data);
+    await new Promise(resolve => setTimeout(resolve, 500)); // Simulate network delay
 
-    const result = await client.create(bookingPayload);
+    const mockBookingId = `booking_${Date.now()}`;
     
-    // Fetch physician name for confirmation page if needed
-    // This can be optimized if physicianName is already available on the client
-    const physicianQuery = '*[_type == "physician" && _id == $id][0]{name}';
-    const physicianDetails = await client.fetch(physicianQuery, { id: data.physicianId });
+    // In a real scenario, you might fetch physician name if not passed or available
+    // For mock, we'll assume physicianName is available or passed through data if needed for confirmation directly
+    // const physicianDetails = { name: "Dr. Mock Physician" }; // Example
 
-    // Revalidate paths if you have pages displaying bookings that need to update
-    revalidatePath('/admin/dashboard'); // Example, adjust as needed
-    // revalidatePath('/admin/bookings'); // If such a page exists
+    revalidatePath('/admin/dashboard');
 
     return { 
         success: true, 
         booking: {
-            ...(result as BookingResult), // Cast result
-            physician: { // Ensure physician object has name for confirmation
-                _ref: data.physicianId,
-                _type: 'reference',
-                name: physicianDetails?.name || 'N/A'
-            }
+            _id: mockBookingId,
+            customerName: data.customerName,
+            physician: { 
+                _id: data.physicianId,
+                name: "Selected Physician" // Placeholder, ideally fetch or pass physician name
+            },
+            bookingDateTime: data.bookingDateTime,
         }
     };
   } catch (error) {
-    console.error("Sanity booking submission error:", error);
+    console.error("Mock booking submission error:", error);
     let errorMessage = "An unknown error occurred during booking.";
     if (error instanceof Error) {
         errorMessage = error.message;

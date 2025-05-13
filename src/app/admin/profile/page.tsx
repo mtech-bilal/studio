@@ -14,15 +14,7 @@ import { useAuth } from "@/hooks/useAuth"; // Import useAuth
 import { useRouter } from 'next/navigation';
 import { Skeleton } from '@/components/ui/skeleton'; // Import Skeleton
 
-// Mock function for updating profile (replace with Sanity client call / Server Action)
-// async function updateProfileInSanity(userId: string, data: { name?: string; email?: string }) {
-//   "use server";
-//   // await client.patch(userId).set(data).commit();
-//   console.log("Updating profile in Sanity (mock):", userId, data);
-//   await new Promise(resolve => setTimeout(resolve, 1000));
-//   return { ...data }; // Return updated data
-// }
-
+// Removed mock updateProfileInSanity function
 
 export default function ProfilePage() {
   const { user, login, logout, isLoading: authIsLoading } = useAuth();
@@ -53,9 +45,7 @@ export default function ProfilePage() {
     if (!user) return;
     setIsSaving(true);
     
-    // Simulate API call / Server Action to update profile in Sanity
-    // In a real app, you'd call an action:
-    // const updatedData = await updateProfileInSanity(user.id, { name, email });
+    // Simulate API call to update profile (client-side mock)
     console.log("Saving changes (mock):", { name, email });
     await new Promise(resolve => setTimeout(resolve, 1500));
     const updatedData = { name, email }; // Mock response
@@ -63,8 +53,11 @@ export default function ProfilePage() {
     setIsSaving(false);
     setIsEditing(false);
     
-    // Update user in auth store
-    login({ ...user, ...updatedData });
+    // Update user in auth store (client-side)
+    if (user) { // Ensure user is not null before spreading
+        login({ ...user, ...updatedData });
+    }
+
 
     toast({
       title: "Profile Updated",
@@ -102,8 +95,7 @@ export default function ProfilePage() {
   }
 
   if (!user) {
-     // This case should ideally be handled by a layout or middleware redirecting to login
-     router.push('/login'); // Redirect if no user and not loading
+     router.push('/login'); 
      return <p>Redirecting to login...</p>;
   }
 
@@ -134,7 +126,7 @@ export default function ProfilePage() {
                 <CardDescription>Manage your personal information and account settings.</CardDescription>
              </div>
               {isEditing && (
-                 <Button size="sm" variant="outline" disabled> {/* TODO: Implement photo upload to Sanity */}
+                 <Button size="sm" variant="outline" disabled> {/* TODO: Implement photo upload */}
                     <Upload className="mr-2 h-4 w-4" /> Upload Photo
                  </Button>
               )}
@@ -187,7 +179,7 @@ export default function ProfilePage() {
         </CardContent>
         {isEditing && (
            <CardFooter className="border-t pt-4">
-              <Button onClick={handleSaveChanges} disabled={isSaving || name === user.name && email === user.email}>
+              <Button onClick={handleSaveChanges} disabled={isSaving || (user && name === user.name && email === user.email)}>
                  {isSaving ? "Saving..." : <><Save className="mr-2 h-4 w-4" /> Save Changes</>}
               </Button>
            </CardFooter>

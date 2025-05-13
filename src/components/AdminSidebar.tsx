@@ -16,16 +16,28 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import {
-  ClipboardList, Link as LinkIcon, BarChart2, LogOut, Settings,
-  Users,
-  Briefcase,
-  ShieldCheck,
-  CreditCard,
-  Stethoscope,
-  User,
+  LayoutDashboard, // Dashboard
+  CalendarDays,   // Appointment
+  Stethoscope,    // Doctors (Physicians)
+  Users2,         // Patients (Customers)
+  Pill,           // Pharmacy
+  FileText,       // Blogs
+  AppWindow,      // Pages (general)
+  Mail,           // Email Template
+  ShieldAlert,    // Authentication
+  Component,      // UI Components
+  ListOrdered,    // Miscellaneous (or Layers3)
+  Users,          // User Management
+  ShieldCheck,    // Roles
+  CreditCard,     // Payments
+  Settings,       // Settings
+  User,           // Profile
+  LogOut,         // Logout
+  HeartPulse,     // Doctris Logo
+  Link2,          // Create Link
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useAuth } from "@/hooks/useAuth"; // Import useAuth
+import { useAuth } from "@/hooks/useAuth";
 
 export function AdminSidebar() {
   const pathname = usePathname();
@@ -39,33 +51,31 @@ export function AdminSidebar() {
     router.push('/login');
   };
 
-  // If not authenticated or user role is not available yet, render minimal sidebar or nothing.
-  // This depends on how you want to handle the loading state or unauthenticated access to admin layout.
-  // For now, we assume this component is only rendered if some level of auth check has passed or is loading.
-
   const isAdmin = user?.role === 'admin';
-  const isPhysician = user?.role === 'physician';
-  const isCustomer = user?.role === 'customer';
+  // const isPhysician = user?.role === 'physician'; // For future use
+  // const isCustomer = user?.role === 'customer'; // For future use
 
-  const canAccessDashboard = isAdmin || isPhysician || isCustomer;
+  // All authenticated users can see Dashboard and Profile
+  const canAccessDashboard = isAuthenticated;
+
 
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader>
-        <div className="flex items-center gap-2 justify-between p-2">
-           <Link href="/admin/dashboard" className="flex items-center gap-2 font-semibold text-lg">
-             <ClipboardList className="h-6 w-6 text-primary" />
-             <span className="group-data-[collapsible=icon]:hidden">BookDoc</span>
+        <div className="flex items-center gap-2 justify-between p-2 h-16 border-b border-sidebar-border">
+           <Link href="/admin/dashboard" className="flex items-center gap-2.5 font-semibold text-xl text-primary">
+             <HeartPulse className="h-7 w-7" />
+             <span className="group-data-[collapsible=icon]:hidden">Doctris</span>
            </Link>
            <div className="group-data-[collapsible=icon]:hidden">
              <SidebarTrigger />
            </div>
         </div>
       </SidebarHeader>
-      <Separator className="my-0 mb-2" />
-      <SidebarContent>
+      {/* Removed Separator, header has border-b */}
+      <SidebarContent className="pt-4">
         <SidebarMenu>
-          {/* Dashboard - accessible by Admin, Physician, Customer */}
+          {/* Dashboard - accessible by all */}
           {canAccessDashboard && (
             <SidebarMenuItem>
               <SidebarMenuButton
@@ -74,25 +84,25 @@ export function AdminSidebar() {
                 tooltip="Dashboard"
               >
                 <Link href="/admin/dashboard">
-                  <BarChart2 />
+                  <LayoutDashboard />
                   <span>Dashboard</span>
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
           )}
-
-          {/* Admin-only links */}
-          {isAdmin && (
+          
+          {/* Standard User Links (visible to admin, and potentially others if logic expanded) */}
+           {isAdmin && (
             <>
               <SidebarMenuItem>
                 <SidebarMenuButton
                   asChild
-                  isActive={isActive("/admin/create-link")}
-                  tooltip="Create Link"
+                  isActive={isActive("/admin/create-link")} // Keep this as 'Appointments' or 'Manage Links'
+                  tooltip="Appointments"
                 >
                   <Link href="/admin/create-link">
-                    <LinkIcon />
-                    <span>Create Link</span>
+                    <CalendarDays /> 
+                    <span>Appointments</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -101,11 +111,11 @@ export function AdminSidebar() {
                 <SidebarMenuButton
                   asChild
                   isActive={isActive("/admin/physicians")}
-                  tooltip="Physicians"
+                  tooltip="Doctors"
                 >
                   <Link href="/admin/physicians">
                     <Stethoscope />
-                    <span>Physicians</span>
+                    <span>Doctors</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -114,16 +124,16 @@ export function AdminSidebar() {
                 <SidebarMenuButton
                   asChild
                   isActive={isActive("/admin/customers")}
-                  tooltip="Customers"
+                  tooltip="Patients"
                 >
                   <Link href="/admin/customers">
-                    <Briefcase />
-                    <span>Customers</span>
+                    <Users2 />
+                    <span>Patients</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
 
-              <SidebarMenuItem>
+               <SidebarMenuItem>
                 <SidebarMenuButton
                   asChild
                   isActive={isActive("/admin/payments")}
@@ -135,14 +145,27 @@ export function AdminSidebar() {
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
+            </>
+           )}
 
-              <Separator className="my-2" />
-
+          {/* Placeholder links from Doctris theme - for admin */}
+          {isAdmin && (
+            <>
+              {/* Example Placeholder: <SidebarMenuItem><SidebarMenuButton tooltip="Pharmacy"><Pill /><span>Pharmacy</span></SidebarMenuButton></SidebarMenuItem> */}
+              {/* Example Placeholder: <SidebarMenuItem><SidebarMenuButton tooltip="Blogs"><FileText /><span>Blogs</span></SidebarMenuButton></SidebarMenuItem> */}
+            </>
+          )}
+          
+          {/* Admin specific management links */}
+          {isAdmin && (
+             <>
+              <Separator className="my-3" />
+              <p className="px-4 text-xs font-semibold text-muted-foreground group-data-[collapsible=icon]:hidden mb-1">Admin Tools</p>
               <SidebarMenuItem>
                 <SidebarMenuButton
                   asChild
                   isActive={isActive("/admin/users")}
-                  tooltip="Users"
+                  tooltip="User Management"
                 >
                   <Link href="/admin/users">
                     <Users />
@@ -155,7 +178,7 @@ export function AdminSidebar() {
                 <SidebarMenuButton
                   asChild
                   isActive={isActive("/admin/roles")}
-                  tooltip="Roles"
+                  tooltip="Role Management"
                 >
                   <Link href="/admin/roles">
                     <ShieldCheck />
@@ -163,10 +186,23 @@ export function AdminSidebar() {
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
+               <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  isActive={isActive("/admin/settings")}
+                  tooltip="Settings"
+                >
+                  <Link href="/admin/settings">
+                    <Settings />
+                    <span>Settings</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
             </>
           )}
 
           {/* Profile - accessible by all authenticated users */}
+           <Separator className="my-3 mt-auto group-data-[collapsible=icon]:hidden" />
           {isAuthenticated && (
              <SidebarMenuItem>
               <SidebarMenuButton
@@ -182,27 +218,11 @@ export function AdminSidebar() {
             </SidebarMenuItem>
           )}
 
-
-          {/* Settings - Admin only */}
-          {isAdmin && (
-            <SidebarMenuItem>
-              <SidebarMenuButton
-                asChild
-                isActive={isActive("/admin/settings")}
-                tooltip="Settings"
-              >
-                <Link href="/admin/settings">
-                  <Settings />
-                  <span>Settings</span>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          )}
         </SidebarMenu>
       </SidebarContent>
-      <Separator className="my-2" />
+      
       {isAuthenticated && (
-         <SidebarFooter>
+         <SidebarFooter className="border-t border-sidebar-border p-2">
            <SidebarMenu>
              <SidebarMenuItem>
                <SidebarMenuButton tooltip="Logout" onClick={handleLogout}>

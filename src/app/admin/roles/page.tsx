@@ -8,15 +8,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { ShieldCheck, PlusCircle, Edit, Trash2 } from "lucide-react";
-import { client } from '@/sanity/client';
-import type { SanityDocument } from 'next-sanity';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
-import { createRole, updateRole, deleteRole, type Role } from '@/actions/roleActions'; // Import server actions
+import { fetchMockRoles, createRole, updateRole, deleteRole, type Role, type RoleInput } from '@/actions/roleActions';
 
 export default function RoleManagementPage() {
   const [roles, setRoles] = useState<Role[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingRole, setEditingRole] = useState<Role | null>(null);
   const { toast } = useToast();
@@ -25,11 +24,11 @@ export default function RoleManagementPage() {
   const [roleInternalName, setRoleInternalName] = useState('');
   const [roleDisplayTitle, setRoleDisplayTitle] = useState('');
 
-  const fetchRoles = async () => {
+  const loadRoles = async () => {
     setIsLoading(true);
     try {
-      const sanityRoles: Role[] = await client.fetch('*[_type == "role"]{_id, _createdAt, _updatedAt, _rev, _type, name, title}');
-      setRoles(sanityRoles);
+      const mockRolesList = await fetchMockRoles();
+      setRoles(mockRolesList);
     } catch (error) {
       console.error("Failed to fetch roles:", error);
       toast({ title: "Error", description: "Could not fetch roles.", variant: "destructive" });
@@ -39,7 +38,7 @@ export default function RoleManagementPage() {
   };
 
   useEffect(() => {
-    fetchRoles();
+    loadRoles();
   }, []);
 
   const handleOpenDialog = (role: Role | null = null) => {
@@ -65,23 +64,28 @@ export default function RoleManagementPage() {
         return;
     }
 
-    const roleData = { name: roleInternalName.toLowerCase(), title: roleDisplayTitle };
+    const roleData: RoleInput = { name: roleInternalName.toLowerCase().trim(), title: roleDisplayTitle.trim() };
+    setIsSaving(true);
 
     try {
-        // For UI feedback, you can set a specific loading state for the dialog if needed
-        // setIsLoading(true); 
         if (editingRole) {
          startTransition(async () => {
             await updateRole(editingRole._id, roleData);
             toast({ title: "Success", description: "Role updated successfully." });
-            await fetchRoles(); // Refresh list
+            await loadRoles(); 
             handleCloseDialog();
           });
         } else {
           startTransition(async () => {
+            // Check if role name already exists
+            if (roles.some(r => r.name === roleData.name)) {
+                toast({ title: "Error", description: `Role with internal name "${roleData.name}" already exists.`, variant: "destructive" });
+                setIsSaving(false);
+                return;
+            }
             await createRole(roleData);
             toast({ title: "Success", description: "Role created successfully." });
-            await fetchRoles(); // Refresh list
+            await loadRoles(); 
             handleCloseDialog();
           });
         }
@@ -89,26 +93,35 @@ export default function RoleManagementPage() {
         console.error("Failed to save role:", error);
         toast({ title: "Error", description: "Could not save role.", variant: "destructive" });
     } finally {
-        // setIsLoading(false);
+        // Ensure isSaving is set to false within the transition or after it completes
+        if (!editingRole) { // For new role creation, can set it false sooner if not using transition
+            setIsSaving(false);
+        }
     }
   };
 
   const handleDeleteRole = async (id: string) => {
+    const roleToDelete = roles.find(r => r._id === id);
+    if (roleToDelete && ['admin', 'physician', 'customer'].includes(roleToDelete.name)) {
+        toast({ title: "Action Denied", description: `Cannot delete core system role: ${roleToDelete.title}.`, variant: "destructive"});
+        return;
+    }
+
     if (!confirm("Are you sure you want to delete this role? This action cannot be undone.")) {
         return;
     }
+    setIsSaving(true); // Use isSaving to disable delete button during operation
     try {
-        // setIsLoading(true);
          startTransition(async () => {
             await deleteRole(id);
             toast({ title: "Success", description: "Role deleted successfully." });
-            await fetchRoles(); // Refresh list
+            await loadRoles();
         });
     } catch (error) {
         console.error("Failed to delete role:", error);
         toast({ title: "Error", description: "Could not delete role. It might be in use.", variant: "destructive" });
     } finally {
-        // setIsLoading(false);
+        setIsSaving(false);
     }
   };
   
@@ -137,7 +150,7 @@ export default function RoleManagementPage() {
     <div className="space-y-6">
        <div className="flex justify-between items-center">
          <h1 className="text-3xl font-bold tracking-tight">Roles Management</h1>
-         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+         <Dialog open={isDialogOpen} onOpenChange={(isOpen) => { if (!isOpen) handleCloseDialog(); else setIsDialogOpen(true);}}>
             <DialogTrigger asChild>
                <Button onClick={() => handleOpenDialog()}>
                   <PlusCircle className="mr-2 h-4 w-4" /> Add New Role
@@ -153,17 +166,17 @@ export default function RoleManagementPage() {
                <div className="grid gap-4 py-4">
                   <div className="space-y-2">
                      <Label htmlFor="roleInternalName">Internal Name (e.g., admin, physician)</Label>
-                     <Input id="roleInternalName" value={roleInternalName} onChange={(e) => setRoleInternalName(e.target.value)} placeholder="e.g., staff_member" disabled={!!editingRole} />
+                     <Input id="roleInternalName" value={roleInternalName} onChange={(e) => setRoleInternalName(e.target.value)} placeholder="e.g., staff_member" disabled={!!editingRole || isSaving} />
                      {editingRole && <p className="text-xs text-muted-foreground">Internal name cannot be changed after creation.</p>}
                   </div>
                   <div className="space-y-2">
                      <Label htmlFor="roleDisplayTitle">Display Title (e.g., Administrator)</Label>
-                     <Input id="roleDisplayTitle" value={roleDisplayTitle} onChange={(e) => setRoleDisplayTitle(e.target.value)} placeholder="e.g., Staff Member" />
+                     <Input id="roleDisplayTitle" value={roleDisplayTitle} onChange={(e) => setRoleDisplayTitle(e.target.value)} placeholder="e.g., Staff Member" disabled={isSaving} />
                   </div>
                </div>
                <DialogFooter>
-                 <Button variant="outline" onClick={handleCloseDialog}>Cancel</Button>
-                 <Button onClick={handleSaveRole}>Save Role</Button>
+                 <Button variant="outline" onClick={handleCloseDialog} disabled={isSaving}>Cancel</Button>
+                 <Button onClick={handleSaveRole} disabled={isSaving}>{isSaving ? 'Saving...' : 'Save Role'}</Button>
                </DialogFooter>
             </DialogContent>
          </Dialog>
@@ -181,10 +194,17 @@ export default function RoleManagementPage() {
                      <CardDescription className="pt-1">Internal Name: {role.name}</CardDescription>
                    </div>
                    <div className="flex gap-1">
-                      <Button variant="ghost" size="sm" onClick={() => handleOpenDialog(role)}>
+                      <Button variant="ghost" size="sm" onClick={() => handleOpenDialog(role)} disabled={isSaving}>
                          <Edit className="h-4 w-4 mr-1" /> Edit
                       </Button>
-                      <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => handleDeleteRole(role._id)}>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="text-destructive hover:text-destructive hover:bg-destructive/10" 
+                        onClick={() => handleDeleteRole(role._id)}
+                        disabled={isSaving || ['admin', 'physician', 'customer'].includes(role.name)}
+                        title={['admin', 'physician', 'customer'].includes(role.name) ? "Cannot delete core roles" : "Delete role"}
+                        >
                          <Trash2 className="h-4 w-4 mr-1" /> Delete
                       </Button>
                    </div>
