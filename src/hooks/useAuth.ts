@@ -1,6 +1,7 @@
 // src/hooks/useAuth.ts
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
+import React from 'react'; // Import React
 
 export interface AuthUser {
   id: string;
@@ -58,3 +59,4 @@ export const useAuth = () => {
 
   return { user, isAuthenticated, login, logout, isLoading, setIsLoading };
 };
+
