@@ -1,10 +1,12 @@
 // src/actions/userActions.ts
 'use server';
 
-import { client } from '@/sanity/client';
+import { getClient } from '@/sanity/client';
 import type { SanityDocument, Slug, SanityReference } from 'next-sanity';
 import type { Role } from './roleActions';
 import { revalidatePath } from 'next/cache';
+import type { AuthUser } from '@/hooks/useAuth'; // Corrected import for AuthUser
+
 
 export interface User extends SanityDocument {
   _id: string;
@@ -47,18 +49,24 @@ export interface UserInputData {
 }
 
 export async function fetchUsers(): Promise<User[]> {
+  const client = getClient();
   // Fetch users and their referenced role's name (slug) and title
   const query = `*[_type == "user"]{
     ...,
-    "role": role->{_id, name, title} // Resolve role reference
+    "role": role->{_id, _type, name, title} // Resolve role reference, ensure _type is fetched for reference
   } | order(_createdAt desc)`;
   try {
     const users = await client.fetch<User[]>(query);
-    // Transform role to just be the role name (slug's current value) for simpler use in AuthUser
+    // Transform role to include resolved details correctly
     return users.map(u => ({
         ...u,
-        role: u.role?.resolved?.name?.current || 'unknown' // Simplified for AuthUser context
-    })) as unknown as User[]; // Adjust type assertion as needed based on where User is used
+        // Ensure the role object structure matches the User interface, including _ref
+        role: u.role?.resolved?._id ? { 
+            _type: 'reference', 
+            _ref: u.role.resolved._id, 
+            resolved: u.role.resolved 
+        } : undefined
+    }));
   } catch (error) {
     console.error("Error fetching users from Sanity:", error);
     return [];
@@ -66,20 +74,25 @@ export async function fetchUsers(): Promise<User[]> {
 }
 
 export async function fetchUserById(userId: string): Promise<User | null> {
+  const client = getClient();
   const query = `*[_type == "user" && _id == $userId][0]{
     ...,
-    "role": role->{_id, name, title}
+    "role": role->{_id, _type, name, title} // Ensure _type is fetched for reference
   }`;
   try {
-    const user = await client.fetch<UserSanityDocument>(query, { userId });
-    if (!user) return null;
+    const userDoc = await client.fetch<UserSanityDocument & { role: Role }>(query, { userId }); // Adjust type for fetched role
+    if (!userDoc) return null;
 
-    // Map to the User interface, primarily to ensure role is correctly structured if needed
+    // Map to the User interface
     return {
-      ...user,
-      _id: user._id,
+      ...userDoc,
+      _id: userDoc._id,
       _type: 'user',
-      role: user.role?._ref ? { _type: 'reference', _ref: user.role._ref, resolved: { name: {current: (user.role as any).name?.current || ''}} as Role } : undefined,
+      role: userDoc.role?._id ? { // Check if role resolved with an _id
+          _type: 'reference', 
+          _ref: userDoc.role._id, 
+          resolved: userDoc.role 
+      } : undefined,
     } as User;
 
   } catch (error) {
@@ -90,6 +103,7 @@ export async function fetchUserById(userId: string): Promise<User | null> {
 
 
 export async function createUser(data: UserInputData): Promise<User> {
+  const client = getClient();
   // Check if user with email already exists
   const existingUserQuery = `*[_type == "user" && email == $email][0]`;
   const existingUser = await client.fetch(existingUserQuery, { email: data.email });
@@ -123,6 +137,7 @@ export async function createUser(data: UserInputData): Promise<User> {
 }
 
 export async function updateUser(userId: string, data: Partial<UserInputData>): Promise<User | null> {
+  const client = getClient();
    // Check if new email conflicts with another user
   if (data.email) {
     const currentUser = await client.getDocument(userId);
@@ -142,7 +157,14 @@ export async function updateUser(userId: string, data: Partial<UserInputData>): 
     if (data.password) patch.set({ password: data.password }); // Updating plain text password - NOT FOR PRODUCTION
     if (data.roleId) patch.set({ role: { _type: 'reference', _ref: data.roleId } });
     if (data.status) patch.set({ status: data.status });
-    if (data.avatarUrl !== undefined) patch.set({ avatarUrl: data.avatarUrl }); // Allow setting to null/empty
+    if (data.avatarUrl !== undefined) { // Allows setting to null or empty string to remove avatar
+      if (data.avatarUrl === null || data.avatarUrl === '') {
+        patch.unset(['avatarUrl']);
+      } else {
+        patch.set({ avatarUrl: data.avatarUrl });
+      }
+    }
+
 
     await patch.commit();
     revalidatePath('/admin/users');
@@ -157,6 +179,7 @@ export async function updateUser(userId: string, data: Partial<UserInputData>): 
 }
 
 export async function deleteUser(userId: string): Promise<void> {
+  const client = getClient();
   try {
     await client.delete(userId);
     revalidatePath('/admin/users');
@@ -167,6 +190,7 @@ export async function deleteUser(userId: string): Promise<void> {
 }
 
 export async function authenticateUser(email: string, passwordAttempt: string): Promise<AuthUser | null> {
+  const client = getClient();
   const query = `*[_type == "user" && email == $email][0]{
     _id,
     name,
@@ -209,4 +233,3 @@ export async function authenticateUser(email: string, passwordAttempt: string): 
     return null;
   }
 }
-

@@ -1,7 +1,7 @@
 // src/actions/bookingActions.ts
 "use server";
 
-import { client } from '@/sanity/client';
+import { getClient } from '@/sanity/client';
 import type { SanityDocument, SanityReference } from 'next-sanity';
 import { revalidatePath } from "next/cache";
 import type { Physician } from './physicianActions';
@@ -29,6 +29,7 @@ export interface BookingResult extends SanityDocument {
 }
 
 export async function submitBooking(data: BookingData): Promise<{success: boolean, booking?: BookingResult, error?: string}> {
+  const client = getClient();
   try {
     const bookingDoc = {
       _type: 'booking',
@@ -46,7 +47,6 @@ export async function submitBooking(data: BookingData): Promise<{success: boolea
 
     const createdBooking = await client.create<BookingResult>(bookingDoc);
     
-    // Revalidate relevant paths
     revalidatePath('/admin/dashboard'); // For admin to see new bookings
     // Potentially revalidate a patient's booking history page if it exists
 

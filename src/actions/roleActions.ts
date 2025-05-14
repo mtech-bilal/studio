@@ -1,7 +1,7 @@
 // src/actions/roleActions.ts
 'use server';
 
-import { client } from '@/sanity/client';
+import { getClient } from '@/sanity/client';
 import type { SanityDocument, Slug } from 'next-sanity';
 import { revalidatePath } from 'next/cache';
 
@@ -20,6 +20,7 @@ export interface RoleInput {
 }
 
 export async function fetchRoles(): Promise<Role[]> {
+  const client = getClient();
   const query = `*[_type == "role"] | order(title asc)`;
   try {
     const roles = await client.fetch<Role[]>(query);
@@ -31,6 +32,7 @@ export async function fetchRoles(): Promise<Role[]> {
 }
 
 export async function createRole(roleData: RoleInput): Promise<Role> {
+  const client = getClient();
   try {
     const newRole = await client.create<Role>({
       _type: 'role',
@@ -50,6 +52,7 @@ export async function createRole(roleData: RoleInput): Promise<Role> {
 }
 
 export async function updateRole(roleId: string, roleData: Partial<RoleInput>): Promise<Role | null> {
+  const client = getClient();
   try {
     const patch = client.patch(roleId);
     if (roleData.title) {
@@ -71,6 +74,7 @@ export async function updateRole(roleId: string, roleData: Partial<RoleInput>): 
 }
 
 export async function deleteRole(roleId: string): Promise<void> {
+  const client = getClient();
   // Prevent deletion of core roles (server-side check)
   const coreRoleDoc = await client.getDocument(roleId);
   if (coreRoleDoc && ['admin', 'physician', 'customer'].includes((coreRoleDoc.name as Slug)?.current)) {

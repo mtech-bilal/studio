@@ -1,7 +1,7 @@
 // src/actions/physicianActions.ts
 'use server';
 
-import { client } from '@/sanity/client';
+import { getClient } from '@/sanity/client';
 import type { SanityDocument } from 'next-sanity';
 import { revalidatePath } from 'next/cache';
 
@@ -32,6 +32,7 @@ export interface PhysicianInputData {
 }
 
 export async function fetchPhysicians(): Promise<Physician[]> {
+  const client = getClient();
   const query = `*[_type == "physician"] | order(name asc)`;
   try {
     const physicians = await client.fetch<Physician[]>(query);
@@ -43,6 +44,7 @@ export async function fetchPhysicians(): Promise<Physician[]> {
 }
 
 export async function fetchPhysicianById(id: string): Promise<Physician | null> {
+  const client = getClient();
   const query = `*[_type == "physician" && _id == $id][0]`;
   try {
     const physician = await client.fetch<Physician | null>(query, { id });
@@ -54,6 +56,7 @@ export async function fetchPhysicianById(id: string): Promise<Physician | null> 
 }
 
 export async function createPhysician(data: PhysicianInputData): Promise<Physician> {
+  const client = getClient();
   try {
     const newPhysicianDoc = {
       _type: 'physician',
@@ -77,6 +80,7 @@ export async function createPhysician(data: PhysicianInputData): Promise<Physici
 }
 
 export async function updatePhysician(id: string, data: Partial<PhysicianInputData>): Promise<Physician | null> {
+  const client = getClient();
   try {
     const patch = client.patch(id);
     if (data.name) patch.set({ name: data.name });
@@ -105,6 +109,7 @@ export async function updatePhysician(id: string, data: Partial<PhysicianInputDa
 }
 
 export async function deletePhysician(id: string): Promise<void> {
+  const client = getClient();
   try {
     // Check for related bookings before deleting
     const relatedBookingsQuery = `count(*[_type == "booking" && physician._ref == $id])`;
